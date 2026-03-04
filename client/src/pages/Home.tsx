@@ -15,6 +15,7 @@ import GaugeMeter from "@/components/GaugeMeter";
 import WeeklyDonut from "@/components/WeeklyDonut";
 import DailyProgressBar from "@/components/DailyProgressBar";
 import CheatPanel from "@/components/CheatPanel";
+import WeeklyProgress from "@/components/WeeklyProgress";
 import TodayTimeline from "@/components/TodayTimeline";
 import LocationLog from "@/components/LocationLog";
 import IdealScheduleTab from "@/components/IdealScheduleTab";
@@ -77,7 +78,7 @@ export default function Home() {
 
   const FOOT_TABS: { id: FootTab; icon: string; label: string }[] = [
     { id: "today", icon: "📊", label: "今日" },
-    { id: "week",  icon: "📈", label: "今週" },
+    { id: "week",  icon: "📈", label: "今週の経過" },
     { id: "ideal", icon: "🌸", label: "理想設定" },
     { id: "help",  icon: "📖", label: "使い方" },
   ];
@@ -401,111 +402,10 @@ export default function Home() {
         )}
 
         {/* =============================================
-            今週タブ: 比較ドーナツ + 帯グラフ
+            今週の経過タブ: WeeklyProgress
         ============================================= */}
         {activeTab === "week" && (
-          <div className="flex flex-col gap-3">
-            {/* グラフカード */}
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-            >
-              {/* 今日/今週 切り替えタブ */}
-              <div
-                className="flex rounded-xl overflow-hidden mb-3 p-0.5"
-                style={{ background: "rgba(0,0,0,0.04)", width: "fit-content" }}
-              >
-                {(["today", "week"] as const).map((t) => {
-                  const isG = graphTab === t;
-                  return (
-                    <button
-                      key={t}
-                      onClick={() => setGraphTab(t)}
-                      className="px-3 py-1 text-xs font-medium rounded-lg transition-all duration-200"
-                      style={{
-                        fontFamily: "'Noto Sans JP', sans-serif",
-                        color: isG ? "rgba(0,0,0,0.65)" : "rgba(0,0,0,0.3)",
-                        background: isG ? "rgba(255,255,255,0.95)" : "transparent",
-                        fontWeight: isG ? 700 : 400,
-                        boxShadow: isG ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-                      }}
-                    >
-                      {t === "today" ? "📊 今日のポイント" : "📈 今週のポイント"}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-start gap-3">
-                {/* 左：比較ドーナツ */}
-                <div className="shrink-0">
-                  <WeeklyDonut schedule={gameState.schedule} size={130} />
-                </div>
-                {/* 右：帯グラフ */}
-                <div className="flex-1 min-w-0">
-                  <DailyProgressBar schedule={gameState.schedule} />
-                </div>
-              </div>
-            </div>
-
-            {/* 週間ログサマリー */}
-            {weeklyLogs.length > 0 && (
-              <div
-                className="rounded-2xl p-4"
-                style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-              >
-                <div className="text-sm font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-                  📅 今週のスコア推移
-                </div>
-                <div className="flex gap-1 items-end" style={{ height: 60 }}>
-                  {weeklyLogs.slice(-7).map((log, i) => {
-                    const h = Math.max(4, (log.score / 100) * 52);
-                    const day = new Date(log.date).getDay();
-                    const dayLabels = ["日","月","火","水","木","金","土"];
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div
-                          style={{
-                            width: "100%",
-                            height: h,
-                            borderRadius: "4px 4px 0 0",
-                            background: log.score >= 70 ? "#34d399" : log.score >= 40 ? "#c084f5" : "#f9a8d4",
-                            transition: "height 0.5s ease",
-                          }}
-                        />
-                        <span style={{ fontSize: "0.55rem", color: "rgba(0,0,0,0.3)" }}>{dayLabels[day]}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* チートパネル */}
-            <CheatPanel cheatPoints={gameState.cheatPoints} streak={gameState.streak} onUseCheat={useCheat} />
-
-            {/* 2人対戦Coming Soon */}
-            <button
-              className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition-all hover:opacity-80"
-              style={{ background: "rgba(255,255,255,0.6)", border: "1.5px dashed rgba(192,132,245,0.25)", opacity: 0.7 }}
-              onClick={() => toast.info("2人対戦は Week3 実装予定です 🎮", {
-                style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" },
-              })}
-            >
-              <span className="text-xl">⚔️</span>
-              <div className="flex-1">
-                <div className="text-sm font-bold" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.45)" }}>
-                  2人対戦モード
-                </div>
-                <div className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.25)" }}>
-                  招待コードで友達と対戦（Coming Soon）
-                </div>
-              </div>
-              <span className="text-xs px-2 py-1 rounded-full" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(192,132,245,0.6)", background: "rgba(192,132,245,0.08)" }}>
-                SOON
-              </span>
-            </button>
-          </div>
+          <WeeklyProgress weeklyLogs={weeklyLogs} />
         )}
 
         {/* === IDEAL SCHEDULE TAB === */}
