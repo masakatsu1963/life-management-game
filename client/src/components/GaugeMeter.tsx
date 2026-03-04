@@ -20,8 +20,10 @@ function scoreToColor(score: number): { main: string; light: string; hex: string
   return { main: "oklch(0.72 0.16 355)", light: "oklch(0.93 0.06 355)", hex: "#f472b6" };
 }
 
+// スコア0 → 左端（π）、スコア100 → 右端（2π=0）
+// 時計回り：スコアが増えるほど右へ針が動く
 function scoreToAngle(score: number): number {
-  return Math.PI - (score / 100) * Math.PI;
+  return Math.PI + (score / 100) * Math.PI;
 }
 
 export default function GaugeMeter({
@@ -32,7 +34,7 @@ export default function GaugeMeter({
 }: GaugeMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  const currentAngleRef = useRef<number>(Math.PI);
+  const currentAngleRef = useRef<number>(scoreToAngle(0)); // 初期位置: スコア0=左端
   const targetAngleRef = useRef<number>(scoreToAngle(score));
 
 
@@ -79,6 +81,7 @@ export default function GaugeMeter({
     }
 
     // === Active arc ===
+    // アクティブアーク：左端(π)からスコア分だけ時計回りに伸びる
     const activeAngle = Math.PI + (currentScore / 100) * Math.PI;
 
     // Gradient: rose → lavender → mint
@@ -207,7 +210,7 @@ export default function GaugeMeter({
         return;
       }
       currentAngleRef.current = current + diff * 0.07;
-      const displayScore = ((Math.PI - currentAngleRef.current) / Math.PI) * 100;
+      const displayScore = ((currentAngleRef.current - Math.PI) / Math.PI) * 100;
       draw(currentAngleRef.current, Math.max(0, Math.min(100, displayScore)));
       animRef.current = requestAnimationFrame(animate);
     };
