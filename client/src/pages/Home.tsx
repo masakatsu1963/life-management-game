@@ -290,11 +290,12 @@ export default function Home() {
                   <div className="text-xs font-medium mb-2" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)" }}>
                     スコア内訳
                   </div>
-                  <ScoreBreakdownPanel
-                    breakdown={gameState.score}
-                    timeDeviation={gameState.timeDeviation}
-                    spaceDeviation={gameState.spaceDeviation}
-                  />
+              <ScoreBreakdownPanel
+                breakdown={gameState.score}
+                timeDeviation={gameState.timeDeviation}
+                spaceDeviation={gameState.spaceDeviation}
+                schedule={gameState.schedule}
+              />
                 </div>
               </div>
             </div>
