@@ -12,12 +12,22 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 export type Difficulty = "easy" | "normal" | "hard";
 
+export type ScheduleCategory =
+  | "wakeup"       // 起床
+  | "pre_work"     // 出勤前のタスク
+  | "commute_learn" // 通勤時間の学習
+  | "break"        // 休憩時間利用
+  | "return_learn" // 帰宅時間の学習
+  | "pre_sleep"    // 就寝前のタスク
+  | "other";       // その他
+
 export interface ScheduleItem {
   id: string;
   time: string; // "HH:MM"
   location: string;
   activity: string;
   completed: boolean;
+  category?: ScheduleCategory;
 }
 
 export interface ScoreBreakdown {
@@ -51,13 +61,13 @@ const DIFFICULTY_MULTIPLIERS: Record<Difficulty, number> = {
 };
 
 const DEFAULT_SCHEDULE: ScheduleItem[] = [
-  { id: "1", time: "06:30", location: "自宅", activity: "起床・瞑想", completed: false },
-  { id: "2", time: "07:15", location: "通勤", activity: "学習30分", completed: false },
-  { id: "3", time: "09:00", location: "職場", activity: "業務開始", completed: false },
-  { id: "4", time: "12:00", location: "職場", activity: "昼休み活用", completed: false },
-  { id: "5", time: "18:00", location: "通勤", activity: "帰宅", completed: false },
-  { id: "6", time: "19:00", location: "自宅", activity: "夕食・休息", completed: false },
-  { id: "7", time: "22:00", location: "自宅", activity: "就寝デトックス", completed: false },
+  { id: "1", time: "06:30", location: "自宅", activity: "起床・瞑想", completed: false, category: "wakeup" },
+  { id: "2", time: "07:00", location: "自宅", activity: "出勤前ストレッチ", completed: false, category: "pre_work" },
+  { id: "3", time: "07:30", location: "自宅", activity: "朝の準備・身支度", completed: false, category: "pre_work" },
+  { id: "4", time: "08:00", location: "通勤", activity: "通勤中の学習30分", completed: false, category: "commute_learn" },
+  { id: "5", time: "12:00", location: "職場", activity: "昼休み活用", completed: false, category: "break" },
+  { id: "6", time: "18:00", location: "通勤", activity: "帰宅中の学習", completed: false, category: "return_learn" },
+  { id: "7", time: "22:00", location: "自宅", activity: "就寝デトックス", completed: false, category: "pre_sleep" },
 ];
 
 function timeToMinutes(timeStr: string): number {

@@ -10,7 +10,7 @@ import { useState, useEffect, useRef } from "react";
 import GaugeMeter from "@/components/GaugeMeter";
 import TimeDonut from "@/components/TimeDonut";
 import DifficultySlider from "@/components/DifficultySlider";
-import ScoreBreakdownPanel from "@/components/ScoreBreakdownPanel";
+import DailyProgressBar from "@/components/DailyProgressBar";
 import ScheduleList from "@/components/ScheduleList";
 import CheatPanel from "@/components/CheatPanel";
 import EmotionSelector from "@/components/EmotionSelector";
@@ -270,32 +270,26 @@ export default function Home() {
               className="rounded-2xl p-4"
               style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
-              <div className="flex items-start gap-4">
-                <div className="flex flex-col items-center gap-2">
-                  <TimeDonut schedule={gameState.schedule} currentTime={currentTime} size={140} />
+              <div className="flex items-start gap-3">
+                {/* 左：円グラフ */}
+                <div className="flex flex-col items-center gap-1.5 shrink-0">
+                  <TimeDonut schedule={gameState.schedule} currentTime={currentTime} size={130} />
                   <div className="flex flex-col gap-1">
                     {[
                       { color: "#6ee7b7", label: "達成" },
                       { color: "#93c5fd", label: "予定" },
                       { color: "#fca5a5", label: "未達" },
                     ].map((l) => (
-                      <div key={l.label} className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full" style={{ background: l.color }} />
+                      <div key={l.label} className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: l.color }} />
                         <span className="text-xs" style={{ color: "rgba(0,0,0,0.4)", fontSize: "0.6rem" }}>{l.label}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="flex-1">
-                  <div className="text-xs font-medium mb-2" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)" }}>
-                    スコア内訳
-                  </div>
-              <ScoreBreakdownPanel
-                breakdown={gameState.score}
-                timeDeviation={gameState.timeDeviation}
-                spaceDeviation={gameState.spaceDeviation}
-                schedule={gameState.schedule}
-              />
+                {/* 右：カテゴリ達成帯グラフ */}
+                <div className="flex-1 min-w-0">
+                  <DailyProgressBar schedule={gameState.schedule} />
                 </div>
               </div>
             </div>
