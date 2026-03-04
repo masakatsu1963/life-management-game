@@ -43,6 +43,7 @@ export interface DailyEvent {
   locationAchieved: boolean;
   taskAchieved: boolean;
   achievedAt?: string;
+  timeBonus?: number;           // 時間精度ボーナス（0〜5）
 }
 
 export interface UserProfile {
@@ -329,11 +330,38 @@ export function calcWeeklyStats(logs: DayLog[]): Record<string, { totalItems: nu
 
 // ===================== スコア計算 =====================
 
-function calcScore(events: DailyEvent[]): { score: number; earned: number; total: number } {
+/**
+ * 時間精度ボーナス計算
+ * ちょうど(0分差) → +5pt
+ * 早め(1〜5分前)  → +(5-diff)pt  例: 1分前=+4, 5分前=+0
+ * 遅れ(1分〜)     → max(0, 5-diff)pt  例: 1分後=+4, 5分後=+0, 6分後以降=0
+ * ※ 最大+5、最小0
+ */
+export function calcTimeBonus(scheduledTime: string, achievedAt: string | undefined, currentTime: Date): number {
+  if (!achievedAt) return 0;
+  // achievedAtは "HH:MM" 形式
+  const [sh, sm] = scheduledTime.split(":").map(Number);
+  const [ah, am] = achievedAt.split(":").map(Number);
+  const scheduledMins = sh * 60 + sm;
+  const achievedMins = ah * 60 + am;
+  const diff = achievedMins - scheduledMins; // 負=早め、正=遅れ
+  if (diff === 0) return 5;
+  if (diff < 0) {
+    // 早め: 1分前=+4, 2分前=+3, ... 4分前=+1, 5分前以上=0
+    return Math.max(0, 5 + diff); // diff=-1 → 4, diff=-5 → 0
+  } else {
+    // 遅れ: 1分後=+4, 2分後=+3, ... 4分後=+1, 5分後以上=0
+    return Math.max(0, 5 - diff);
+  }
+}
+
+function calcScore(events: DailyEvent[]): { score: number; earned: number; total: number; bonusTotal: number } {
+  // 基本ポイント合計（最大13pt）
   const total = events.reduce(
     (s, e) => s + e.timePoint + e.locationPoint + e.taskPoint, 0
   );
-  const earned = events.reduce(
+  // 基本達成ポイント
+  const baseEarned = events.reduce(
     (s, e) =>
       s +
       (e.timeAchieved ? e.timePoint : 0) +
@@ -341,8 +369,18 @@ function calcScore(events: DailyEvent[]): { score: number; earned: number; total
       (e.taskAchieved ? e.taskPoint : 0),
     0
   );
-  const score = total > 0 ? Math.round((earned / total) * 100) : 0;
-  return { score, earned, total };
+  // 時間精度ボーナス合計
+  const bonusTotal = events.reduce(
+    (s, e) => s + (e.timeBonus ?? 0),
+    0
+  );
+  const earned = baseEarned + bonusTotal;
+  // スコア = (基本達成 + ボーナス) / (基本最大 + 最大ボーナス) * 100
+  // 最大ボーナスは「時間ポイントを持つイベント数 × 5」
+  const maxBonus = events.filter(e => e.timePoint > 0).length * 5;
+  const scoreTotal = total + maxBonus;
+  const score = scoreTotal > 0 ? Math.round((earned / scoreTotal) * 100) : 0;
+  return { score, earned, total: scoreTotal, bonusTotal };
 }
 
 function getTodayKey(): string {
@@ -423,8 +461,10 @@ export function useScoreEngine() {
     });
   }, []);
 
-  // イベント達成トグル
+  // イベント達成トグル（時間精度ボーナス自動計算付き）
   const toggleEventPoint = useCallback((eventId: string, pointType: PointType) => {
+    const now = new Date();
+    const nowHHMM = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     setEvents(prev =>
       prev.map(e => {
         if (e.id !== eventId) return e;
@@ -432,12 +472,23 @@ export function useScoreEngine() {
           : pointType === "location" ? "locationAchieved"
           : "taskAchieved";
         const newVal = !e[key];
+        const newAchievedAt = newVal ? nowHHMM : e.achievedAt;
+        // 時間ポイントを達成したとき、またはトグルOFFのとき、ボーナスを計算
+        let newTimeBonus = e.timeBonus ?? 0;
+        if (pointType === "time") {
+          if (newVal) {
+            // 達成時: 現在時刻と予定時刻の差でボーナス計算
+            newTimeBonus = calcTimeBonus(e.scheduledTime, nowHHMM, now);
+          } else {
+            // 取り消し時: ボーナスリセット
+            newTimeBonus = 0;
+          }
+        }
         return {
           ...e,
           [key]: newVal,
-          achievedAt: newVal
-            ? new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
-            : e.achievedAt,
+          achievedAt: newAchievedAt,
+          timeBonus: newTimeBonus,
         };
       })
     );
@@ -450,7 +501,7 @@ export function useScoreEngine() {
   }, []);
 
   // スコア計算
-  const { score: rawScore, earned, total } = calcScore(events);
+  const { score: rawScore, earned, total, bonusTotal } = calcScore(events);
 
   // 休日/出張/病欠モードは前日スコアを引き継ぎ
   const effectiveScore = (() => {
@@ -536,6 +587,8 @@ export function useScoreEngine() {
     score: effectiveScore,
     earnedPoints: earned,
     totalPoints: total,
+    bonusTotal,
+    calcTimeBonus,
     dayMode,
     setDayMode,
     currentTime,

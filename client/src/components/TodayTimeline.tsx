@@ -10,8 +10,9 @@
  * - タップで達成トグル
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { DailyEvent, PointType } from "@/hooks/useScoreEngine";
+import { calcTimeBonus } from "@/hooks/useScoreEngine";
 
 interface Props {
   events: DailyEvent[];
@@ -19,6 +20,7 @@ interface Props {
   onToggle: (eventId: string, pointType: PointType) => void;
   earnedPoints: number;
   totalPoints: number;
+  bonusTotal?: number;
 }
 
 function nowStr(d: Date): string {
@@ -37,9 +39,16 @@ function isCurrent(scheduledTime: string, currentTime: Date): boolean {
   return diff >= -30 && diff <= 30;
 }
 
-export default function TodayTimeline({ events, currentTime, onToggle, earnedPoints, totalPoints }: Props) {
+export default function TodayTimeline({ events, currentTime, onToggle, earnedPoints, totalPoints, bonusTotal = 0 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [liveTime, setLiveTime] = useState(new Date());
   const now = nowStr(currentTime);
+
+  // 1秒ごとにリアルタイム時刻を更新（カウントダウン用）
+  useEffect(() => {
+    const id = setInterval(() => setLiveTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // 現在時刻の前後イベントを特定
   const currentIdx = events.findIndex(e => e.scheduledTime > now);
@@ -68,6 +77,11 @@ export default function TodayTimeline({ events, currentTime, onToggle, earnedPoi
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
+          {bonusTotal > 0 && (
+            <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, marginBottom: 2 }}>
+              ⭐ ボーナス +{bonusTotal}pt
+            </div>
+          )}
           <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>達成率</div>
           <div style={{
             width: 80,
@@ -226,6 +240,34 @@ export default function TodayTimeline({ events, currentTime, onToggle, earnedPoi
                           {event.achievedAt && (
                             <span style={{ color: "#34d399", marginLeft: 6 }}>✓ {event.achievedAt}達成</span>
                           )}
+                          {/* 未達成の時間ポイントがある場合: リアルタイムボーナス予測 */}
+                          {!event.timeAchieved && event.timePoint > 0 && (() => {
+                            const liveHHMM = `${String(liveTime.getHours()).padStart(2, "0")}:${String(liveTime.getMinutes()).padStart(2, "0")}`;
+                            const preview = calcTimeBonus(event.scheduledTime, liveHHMM, liveTime);
+                            const [sh, sm] = event.scheduledTime.split(":").map(Number);
+                            const diffSec = (sh * 60 + sm) * 60 - (liveTime.getHours() * 60 + liveTime.getMinutes()) * 60 - liveTime.getSeconds();
+                            if (diffSec > 0 && diffSec <= 600) {
+                              // 10分以内: カウントダウン表示
+                              const mm = Math.floor(diffSec / 60);
+                              const ss = diffSec % 60;
+                              return (
+                                <span style={{ color: preview >= 4 ? "#f59e0b" : "#9ca3af", marginLeft: 6, fontWeight: 600 }}>
+                                  ⏱ {mm}:{String(ss).padStart(2, "0")} → +{preview}pt予測
+                                </span>
+                              );
+                            } else if (diffSec <= 0 && diffSec > -300) {
+                              // 5分以内の遅れ: 警告
+                              const lateSec = Math.abs(diffSec);
+                              const lm = Math.floor(lateSec / 60);
+                              const ls = lateSec % 60;
+                              return (
+                                <span style={{ color: preview > 0 ? "#f97316" : "#ef4444", marginLeft: 6, fontWeight: 600 }}>
+                                  ⚠ {lm}:{String(ls).padStart(2, "0")}遅れ → +{preview}pt
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -251,8 +293,11 @@ export default function TodayTimeline({ events, currentTime, onToggle, earnedPoi
                       {event.timePoint > 0 && (
                         <PointToggleBtn
                           icon="⏰"
-                          label="時間"
+                          label={event.timeAchieved && event.timeBonus !== undefined
+                            ? `時間 +${event.timeBonus}pt`
+                            : "時間"}
                           achieved={event.timeAchieved}
+                          bonus={event.timeBonus}
                           onClick={(e) => { e.stopPropagation(); onToggle(event.id, "time"); }}
                         />
                       )}
@@ -300,11 +345,12 @@ export default function TodayTimeline({ events, currentTime, onToggle, earnedPoi
 }
 
 function PointToggleBtn({
-  icon, label, achieved, onClick
+  icon, label, achieved, bonus, onClick
 }: {
   icon: string;
   label: string;
   achieved: boolean;
+  bonus?: number;
   onClick: (e: React.MouseEvent) => void;
 }) {
   return (

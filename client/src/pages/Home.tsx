@@ -33,6 +33,7 @@ export default function Home() {
     score,
     earnedPoints,
     totalPoints,
+    bonusTotal,
     dayMode,
     setDayMode,
     currentTime,
@@ -351,6 +352,7 @@ export default function Home() {
                 onToggle={toggleEventPoint}
                 earnedPoints={earnedPoints}
                 totalPoints={totalPoints}
+                bonusTotal={bonusTotal}
               />
             </div>
           </div>
