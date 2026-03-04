@@ -139,6 +139,75 @@ function calculateWeightedTotal(
 }
 
 const STORAGE_KEY = "life-mgmt-game-state";
+const WEEKLY_LOG_KEY = "life-mgmt-weekly-log";
+
+// 日付文字列 "YYYY-MM-DD"
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+// 1日分のカテゴリ達成ログ
+export interface DayLog {
+  date: string; // "YYYY-MM-DD"
+  categoryStats: Record<string, { total: number; completed: number }>;
+}
+
+// 過去7日分のログを取得
+export function loadWeeklyLog(): DayLog[] {
+  try {
+    const raw = localStorage.getItem(WEEKLY_LOG_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as DayLog[];
+  } catch {
+    return [];
+  }
+}
+
+function saveWeeklyLog(logs: DayLog[]) {
+  try {
+    // 7日分だけ保持
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,"0")}-${String(cutoff.getDate()).padStart(2,"0")}`;
+    const trimmed = logs.filter(l => l.date >= cutoffStr);
+    localStorage.setItem(WEEKLY_LOG_KEY, JSON.stringify(trimmed));
+  } catch {}
+}
+
+// 今日のログを更新
+export function upsertTodayLog(schedule: ScheduleItem[]) {
+  const logs = loadWeeklyLog();
+  const today = todayStr();
+  const CATS: ScheduleCategory[] = ["wakeup","pre_work","commute_learn","break","return_learn","pre_sleep"];
+  const stats: Record<string, { total: number; completed: number }> = {};
+  for (const cat of CATS) {
+    const items = schedule.filter(s => s.category === cat);
+    stats[cat] = { total: items.length, completed: items.filter(s => s.completed).length };
+  }
+  const idx = logs.findIndex(l => l.date === today);
+  if (idx >= 0) {
+    logs[idx] = { date: today, categoryStats: stats };
+  } else {
+    logs.push({ date: today, categoryStats: stats });
+  }
+  saveWeeklyLog(logs);
+}
+
+// 7日間のカテゴリ別積算達成率を計算
+export function calcWeeklyStats(logs: DayLog[]): Record<string, { totalItems: number; completedItems: number; rate: number }> {
+  const CATS: ScheduleCategory[] = ["wakeup","pre_work","commute_learn","break","return_learn","pre_sleep"];
+  const result: Record<string, { totalItems: number; completedItems: number; rate: number }> = {};
+  for (const cat of CATS) {
+    let total = 0, completed = 0;
+    for (const log of logs) {
+      const s = log.categoryStats[cat];
+      if (s) { total += s.total; completed += s.completed; }
+    }
+    result[cat] = { totalItems: total, completedItems: completed, rate: total > 0 ? completed / total : 0 };
+  }
+  return result;
+}
 
 function loadFromStorage(): Partial<GameState> {
   try {
@@ -241,6 +310,8 @@ export function useScoreEngine() {
   // Save to localStorage when key state changes
   useEffect(() => {
     saveToStorage({ difficulty, schedule, cheatPoints, streak, emotionLevel, spaceDeviation });
+    // 週間ログも同時に更新
+    upsertTodayLog(schedule);
   }, [difficulty, schedule, cheatPoints, streak, emotionLevel, spaceDeviation]);
 
   const toggleActivity = useCallback((id: string) => {
