@@ -451,12 +451,15 @@ export function calcTimeBonus(scheduledTime: string, achievedAt: string | undefi
 }
 
 /**
- * 早起きポイント計算
- * 理想起床時間に対して何分早いかでボーナスを算出
- * ちょうど(0分差) → +5pt
- * 1〜15分早い    → +(5 + 早い分数) pt（最大+20pt）
- * 遅れ(1〜4分)   → +(4〜1)pt
- * 遅れ(5分以上)  → 0pt
+ * 早起きポイント計算（段階別）
+ * 1時間以上早い  → +30pt
+ * 45〜59分早い  → +25pt（1時間早起き）
+ * 30〜44分早い  → +20pt（30分早起き）
+ * 15〜29分早い  → +15pt
+ * 1〜14分早い   → +10pt
+ * ちょうど(0分)   → +5pt
+ * 1〜4分遅れ    → +1〜4pt
+ * 5分以上遅れ  → 0pt
  */
 export function calcEarlyRiseBonus(wakeTime: string, actualTime: string): number {
   const [wh, wm] = wakeTime.split(":").map(Number);
@@ -464,9 +467,26 @@ export function calcEarlyRiseBonus(wakeTime: string, actualTime: string): number
   const idealMins = wh * 60 + wm;
   const actualMins = ah * 60 + am;
   const diff = idealMins - actualMins; // 正=早い、負=遅れ
-  if (diff === 0) return 5;
-  if (diff > 0) return Math.min(5 + diff, 20); // 早い：最大20pt
+  if (diff >= 60) return 30;  // 1時間以上早い
+  if (diff >= 45) return 25;  // 45分以上（1時間早起き山）
+  if (diff >= 30) return 20;  // 30分以上
+  if (diff >= 15) return 15;  // 15分以上
+  if (diff >= 1)  return 10;  // 1分以上
+  if (diff === 0) return 5;   // ちょうど
   return Math.max(0, 5 + diff); // 遅れ：0〜4pt
+}
+
+/**
+ * 早起きポイントの段階説明を返す
+ */
+export function getEarlyRiseLabel(diff: number): { emoji: string; label: string; color: string } {
+  if (diff >= 60) return { emoji: "🌟", label: `${diff}分早起き！超早起き`, color: "#f59e0b" };
+  if (diff >= 45) return { emoji: "⭐", label: `${diff}分早起き！1時間早起き！`, color: "#f59e0b" };
+  if (diff >= 30) return { emoji: "☀️", label: `${diff}分早起き！30分早起き！`, color: "#f59e0b" };
+  if (diff >= 15) return { emoji: "🌤️", label: `${diff}分早起き！`, color: "#fbbf24" };
+  if (diff >= 1)  return { emoji: "👍", label: `${diff}分早起き`, color: "#fbbf24" };
+  if (diff === 0) return { emoji: "⏰", label: "ちょうど！", color: "#34d399" };
+  return { emoji: "🌙", label: `${Math.abs(diff)}分遅れ。明日は早起きしよう！`, color: "#94a3b8" };
 }
 
 /**

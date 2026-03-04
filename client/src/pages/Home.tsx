@@ -21,7 +21,7 @@ import LocationLog from "@/components/LocationLog";
 import IdealScheduleTab from "@/components/IdealScheduleTab";
 import HelpPage from "@/components/HelpPage";
 import SetupScreen from "@/components/SetupScreen";
-import { useScoreEngine, calcEarlyRiseBonus } from "@/hooks/useScoreEngine";
+import { useScoreEngine, calcEarlyRiseBonus, getEarlyRiseLabel } from "@/hooks/useScoreEngine";
 import type { DayMode } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
 
@@ -76,31 +76,34 @@ export default function Home() {
     return nowMinutes >= wakeMinutes - 60 && nowMinutes <= wakeMinutes + 180;
   })();
 
+  // 現在時刻と理想起床時間の差分（リアルタイム）
+  const currentDiff = (() => {
+    const [wh, wm] = (profile.wakeTime || "06:30").split(":").map(Number);
+    const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+    return (wh * 60 + wm) - nowMinutes;
+  })();
+  const previewBonus = calcEarlyRiseBonus(profile.wakeTime || "06:30",
+    `${String(currentTime.getHours()).padStart(2, "0")}:${String(currentTime.getMinutes()).padStart(2, "0")}`);
+  const previewLabel = getEarlyRiseLabel(currentDiff);
+
   const handleEarlyRiseTap = () => {
     if (earlyRiseTapped) return;
     const nowHHMM = `${String(currentTime.getHours()).padStart(2, "0")}:${String(currentTime.getMinutes()).padStart(2, "0")}`;
     const bonus = calcEarlyRiseBonus(profile.wakeTime || "06:30", nowHHMM);
+    const diff = currentDiff;
+    const lbl = getEarlyRiseLabel(diff);
     setEarlyRiseTapped(true);
     setEarlyRiseBonus(bonus);
     setEarlyRiseAnim(true);
     localStorage.setItem(`lgm_early_rise_${todayKey}`, "1");
     localStorage.setItem(`lgm_early_rise_bonus_${todayKey}`, String(bonus));
     setTimeout(() => setEarlyRiseAnim(false), 1200);
-    const diff = (() => {
-      const [wh, wm] = (profile.wakeTime || "06:30").split(":").map(Number);
-      const [ah, am] = nowHHMM.split(":").map(Number);
-      return (wh * 60 + wm) - (ah * 60 + am);
-    })();
-    if (diff > 0) {
-      toast.success(`☀️ 早起き！${diff}分早いで +${bonus}ptボーナス！`, {
-        style: { background: "#fffbeb", border: "1px solid #fbbf24", color: "#92400e" },
-      });
-    } else if (diff === 0) {
-      toast.success(`⏰ ちょうど！+${bonus}pt獲得！`, {
+    if (diff >= 0) {
+      toast.success(`${lbl.emoji} ${lbl.label} +${bonus}ptボーナス！`, {
         style: { background: "#fffbeb", border: "1px solid #fbbf24", color: "#92400e" },
       });
     } else {
-      toast(`🌙 +${bonus}pt獲得。明日は早起きしよう！`, {
+      toast(`${lbl.emoji} ${lbl.label} +${bonus}pt獲得`, {
         style: { background: "#f0f9ff", border: "1px solid #7dd3fc", color: "#0c4a6e" },
       });
     }
@@ -249,7 +252,7 @@ export default function Home() {
                   animation: earlyRiseAnim ? "earlyRisePop 0.4s ease-out" : "earlyRisePulse 2s ease-in-out infinite",
                 }}
               >
-                <div style={{ fontSize: 48, lineHeight: 1 }}>☀️</div>
+                <div style={{ fontSize: 48, lineHeight: 1 }}>{previewLabel.emoji}</div>
                 <div style={{
                   fontSize: 20,
                   fontWeight: 900,
@@ -259,20 +262,65 @@ export default function Home() {
                 }}>
                   おはよう！早起きポイント
                 </div>
-                <div style={{ fontSize: 12, color: "#b45309", fontFamily: "'Noto Sans JP', sans-serif" }}>
-                  タップして起床ボーナスを獲得！
-                </div>
+                {/* リアルタイムプレビュー */}
                 <div style={{
-                  marginTop: 4,
-                  padding: "4px 16px",
-                  background: "rgba(245,158,11,0.85)",
-                  borderRadius: 99,
-                  fontSize: 11,
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontFamily: "'Noto Sans JP', sans-serif",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 16px",
+                  background: "rgba(255,255,255,0.7)",
+                  borderRadius: 12,
+                  border: `1.5px solid ${previewLabel.color}60`,
                 }}>
-                  理想起床 {profile.wakeTime} → 早いほどボーナス大！
+                  <span style={{ fontSize: 12, color: "#92400e", fontFamily: "'Noto Sans JP', sans-serif" }}>
+                    {previewLabel.label}
+                  </span>
+                  <span style={{
+                    fontSize: 18,
+                    fontWeight: 900,
+                    fontFamily: "'Shippori Mincho', serif",
+                    color: previewLabel.color,
+                  }}>
+                    +{previewBonus}pt
+                  </span>
+                </div>
+                {/* 段階表 */}
+                <div style={{
+                  display: "flex",
+                  gap: 4,
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                  marginTop: 2,
+                }}>
+                  {[
+                    { label: "1h以上", pt: 30, min: 60 },
+                    { label: "1h", pt: 25, min: 45 },
+                    { label: "30分", pt: 20, min: 30 },
+                    { label: "15分", pt: 15, min: 15 },
+                    { label: "1分", pt: 10, min: 1 },
+                    { label: "ちょうど", pt: 5, min: 0 },
+                  ].map(tier => (
+                    <div
+                      key={tier.label}
+                      style={{
+                        padding: "2px 7px",
+                        borderRadius: 99,
+                        fontSize: 10,
+                        fontFamily: "'Noto Sans JP', sans-serif",
+                        background: currentDiff >= tier.min
+                          ? "rgba(245,158,11,0.85)"
+                          : "rgba(0,0,0,0.08)",
+                        color: currentDiff >= tier.min ? "#fff" : "rgba(0,0,0,0.35)",
+                        fontWeight: currentDiff >= tier.min ? 700 : 400,
+                        transition: "all 0.3s",
+                      }}
+                    >
+                      {tier.label} +{tier.pt}pt
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 10, color: "#b45309", fontFamily: "'Noto Sans JP', sans-serif", marginTop: 2 }}>
+                  理想起床 {profile.wakeTime} → 早いほどボーナス大！
                 </div>
               </button>
             ) : (
