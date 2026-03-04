@@ -209,49 +209,12 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
           />
         </FieldRow>
         <FieldRow label="起床時間">
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <input
-              type="time"
-              value={local.wakeTime}
-              onChange={e => update("wakeTime", e.target.value)}
-              style={{ ...inputStyle, width: "auto", colorScheme: "light" }}
-            />
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "'Noto Sans JP', sans-serif" }}>アラーム</span>
-              <button
-                onClick={() => update("alarmEnabled", !local.alarmEnabled)}
-                style={{
-                  width: 44,
-                  height: 24,
-                  borderRadius: 99,
-                  border: "none",
-                  background: local.alarmEnabled
-                    ? "linear-gradient(90deg, #f9a8d4, #c084f5)"
-                    : "rgba(0,0,0,0.15)",
-                  cursor: "pointer",
-                  position: "relative",
-                  transition: "background 0.3s",
-                  padding: 0,
-                  flexShrink: 0,
-                }}
-              >
-                <div style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  background: "#fff",
-                  position: "absolute",
-                  top: 3,
-                  left: local.alarmEnabled ? 23 : 3,
-                  transition: "left 0.3s",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-                }} />
-              </button>
-              <span style={{ fontSize: 12, color: local.alarmEnabled ? "#7c3aed" : "#9ca3af", fontWeight: 600, fontFamily: "'Noto Sans JP', sans-serif" }}>
-                {local.alarmEnabled ? "ON 🔔" : "OFF 🔕"}
-              </span>
-            </div>
-          </div>
+          <input
+            type="time"
+            value={local.wakeTime}
+            onChange={e => update("wakeTime", e.target.value)}
+            style={{ ...inputStyle, width: "auto", colorScheme: "light" }}
+          />
         </FieldRow>
         <FieldRow label="就寝時間">
           <input

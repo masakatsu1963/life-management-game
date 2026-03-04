@@ -150,7 +150,6 @@ export interface UserProfile {
   name: string;
   userType: UserType;          // worker=会社員 / student=学生
   wakeTime: string;            // 起床時間 "HH:MM"
-  alarmEnabled: boolean;
   homeStation: string;         // 自宅最寄駅
   workStation: string;         // 勤務先最寄駅 / 学校最寄駅
   workAddress: string;         // 勤務先住所 / 学校住所
@@ -192,7 +191,6 @@ const DEFAULT_PROFILE: UserProfile = {
   name: "",
   userType: "worker",
   wakeTime: "06:30",
-  alarmEnabled: true,
   homeStation: "",
   workStation: "",
   workAddress: "",
@@ -450,6 +448,25 @@ export function calcTimeBonus(scheduledTime: string, achievedAt: string | undefi
   } else {
     return Math.max(0, 5 - diff);
   }
+}
+
+/**
+ * 早起きポイント計算
+ * 理想起床時間に対して何分早いかでボーナスを算出
+ * ちょうど(0分差) → +5pt
+ * 1〜15分早い    → +(5 + 早い分数) pt（最大+20pt）
+ * 遅れ(1〜4分)   → +(4〜1)pt
+ * 遅れ(5分以上)  → 0pt
+ */
+export function calcEarlyRiseBonus(wakeTime: string, actualTime: string): number {
+  const [wh, wm] = wakeTime.split(":").map(Number);
+  const [ah, am] = actualTime.split(":").map(Number);
+  const idealMins = wh * 60 + wm;
+  const actualMins = ah * 60 + am;
+  const diff = idealMins - actualMins; // 正=早い、負=遅れ
+  if (diff === 0) return 5;
+  if (diff > 0) return Math.min(5 + diff, 20); // 早い：最大20pt
+  return Math.max(0, 5 + diff); // 遅れ：0〜4pt
 }
 
 /**

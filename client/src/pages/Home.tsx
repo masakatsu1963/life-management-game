@@ -21,7 +21,7 @@ import LocationLog from "@/components/LocationLog";
 import IdealScheduleTab from "@/components/IdealScheduleTab";
 import HelpPage from "@/components/HelpPage";
 import SetupScreen from "@/components/SetupScreen";
-import { useScoreEngine } from "@/hooks/useScoreEngine";
+import { useScoreEngine, calcEarlyRiseBonus } from "@/hooks/useScoreEngine";
 import type { DayMode } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
 
@@ -57,6 +57,54 @@ export default function Home() {
   const [showSetup, setShowSetup] = useState(() => !profile.name);
   const prevScoreRef = useRef(score);
   const [scoreFlash, setScoreFlash] = useState(false);
+
+  // 早起きポイント状態
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const [earlyRiseTapped, setEarlyRiseTapped] = useState<boolean>(() => {
+    return localStorage.getItem(`lgm_early_rise_${todayKey}`) === "1";
+  });
+  const [earlyRiseBonus, setEarlyRiseBonus] = useState<number>(() => {
+    return parseInt(localStorage.getItem(`lgm_early_rise_bonus_${todayKey}`) || "0");
+  });
+  const [earlyRiseAnim, setEarlyRiseAnim] = useState(false);
+
+  // 早起きボタン表示条件: 起床時間から+3時間以内の朝
+  const isEarlyRiseWindow = (() => {
+    const [wh, wm] = (profile.wakeTime || "06:30").split(":").map(Number);
+    const wakeMinutes = wh * 60 + wm;
+    const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+    return nowMinutes >= wakeMinutes - 60 && nowMinutes <= wakeMinutes + 180;
+  })();
+
+  const handleEarlyRiseTap = () => {
+    if (earlyRiseTapped) return;
+    const nowHHMM = `${String(currentTime.getHours()).padStart(2, "0")}:${String(currentTime.getMinutes()).padStart(2, "0")}`;
+    const bonus = calcEarlyRiseBonus(profile.wakeTime || "06:30", nowHHMM);
+    setEarlyRiseTapped(true);
+    setEarlyRiseBonus(bonus);
+    setEarlyRiseAnim(true);
+    localStorage.setItem(`lgm_early_rise_${todayKey}`, "1");
+    localStorage.setItem(`lgm_early_rise_bonus_${todayKey}`, String(bonus));
+    setTimeout(() => setEarlyRiseAnim(false), 1200);
+    const diff = (() => {
+      const [wh, wm] = (profile.wakeTime || "06:30").split(":").map(Number);
+      const [ah, am] = nowHHMM.split(":").map(Number);
+      return (wh * 60 + wm) - (ah * 60 + am);
+    })();
+    if (diff > 0) {
+      toast.success(`☀️ 早起き！${diff}分早いで +${bonus}ptボーナス！`, {
+        style: { background: "#fffbeb", border: "1px solid #fbbf24", color: "#92400e" },
+      });
+    } else if (diff === 0) {
+      toast.success(`⏰ ちょうど！+${bonus}pt獲得！`, {
+        style: { background: "#fffbeb", border: "1px solid #fbbf24", color: "#92400e" },
+      });
+    } else {
+      toast(`🌙 +${bonus}pt獲得。明日は早起きしよう！`, {
+        style: { background: "#f0f9ff", border: "1px solid #7dd3fc", color: "#0c4a6e" },
+      });
+    }
+  };
 
   useEffect(() => {
     const diff = Math.abs(score - prevScoreRef.current);
@@ -168,6 +216,98 @@ export default function Home() {
 
       {/* Main content */}
       <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-28">
+
+        {/* === 早起きポイント 大型タップボタン === */}
+        {activeTab === "today" && (isEarlyRiseWindow || earlyRiseTapped) && (
+          <div
+            className="mb-3"
+            style={{
+              background: earlyRiseTapped
+                ? "linear-gradient(135deg, rgba(251,191,36,0.15), rgba(245,158,11,0.08))"
+                : "linear-gradient(135deg, rgba(255,236,153,0.6), rgba(251,191,36,0.3))",
+              borderRadius: 24,
+              border: earlyRiseTapped ? "1.5px solid rgba(245,158,11,0.3)" : "2px solid rgba(251,191,36,0.6)",
+              boxShadow: earlyRiseTapped ? "none" : "0 4px 20px rgba(251,191,36,0.35)",
+              overflow: "hidden",
+              position: "relative",
+            }}
+          >
+            {/* 未タップ時: 大型ボタン */}
+            {!earlyRiseTapped ? (
+              <button
+                onClick={handleEarlyRiseTap}
+                style={{
+                  width: "100%",
+                  padding: "20px 16px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  animation: earlyRiseAnim ? "earlyRisePop 0.4s ease-out" : "earlyRisePulse 2s ease-in-out infinite",
+                }}
+              >
+                <div style={{ fontSize: 48, lineHeight: 1 }}>☀️</div>
+                <div style={{
+                  fontSize: 20,
+                  fontWeight: 900,
+                  fontFamily: "'Shippori Mincho', serif",
+                  color: "#92400e",
+                  letterSpacing: "0.02em",
+                }}>
+                  おはよう！早起きポイント
+                </div>
+                <div style={{ fontSize: 12, color: "#b45309", fontFamily: "'Noto Sans JP', sans-serif" }}>
+                  タップして起床ボーナスを獲得！
+                </div>
+                <div style={{
+                  marginTop: 4,
+                  padding: "4px 16px",
+                  background: "rgba(245,158,11,0.85)",
+                  borderRadius: 99,
+                  fontSize: 11,
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontFamily: "'Noto Sans JP', sans-serif",
+                }}>
+                  理想起床 {profile.wakeTime} → 早いほどボーナス大！
+                </div>
+              </button>
+            ) : (
+              /* タップ済み時: 小さい確認表示 */
+              <div
+                style={{
+                  padding: "12px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 24 }}>☀️</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e", fontFamily: "'Shippori Mincho', serif" }}>
+                      早起きポイント獲得済み
+                    </div>
+                    <div style={{ fontSize: 11, color: "#b45309", fontFamily: "'Noto Sans JP', sans-serif" }}>
+                      本日の起床ボーナス
+                    </div>
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: 22,
+                  fontWeight: 900,
+                  fontFamily: "'Shippori Mincho', serif",
+                  color: "#f59e0b",
+                }}>
+                  +{earlyRiseBonus}pt
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* === GAUGE CARD === */}
         <div

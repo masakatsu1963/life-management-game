@@ -112,7 +112,6 @@ export default function SetupScreen({ onComplete }: Props) {
           lunchDuration,
           endTime,
           offDays,
-          alarmEnabled: true,
           workAddress: "",
           learningContent: "英語学習",
           mode: "normal",
