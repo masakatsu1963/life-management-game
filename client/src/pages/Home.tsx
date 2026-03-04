@@ -351,6 +351,7 @@ export default function Home() {
                   onToggle={toggleEventPoint}
                   onContentChange={updateEventContent}
                   taskMode={taskMode}
+                  dayMode={dayMode}
                 />
               </div>
             )}

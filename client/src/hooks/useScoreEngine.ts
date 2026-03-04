@@ -49,6 +49,9 @@ export const TASK_MODE_MAX: Record<TaskMode, number> = {
   hard: 100,
 };
 
+// 休日モードの満点（午前30pt + 午後30pt + 夜間30pt = 90pt）
+export const HOLIDAY_MAX = 90;
+
 // タスクコンテンツ別ポイント定義
 export interface TaskContent {
   id: string;
@@ -93,7 +96,8 @@ export interface DailyEvent {
   taskAchieved: boolean;
   relaxAchieved: boolean;
   achievedAt?: string;
-  timeBonus?: number;           // 時間精度ボーナス（0〜5）
+  timeBonus?: number;           // 時間精度ボーナス（0ー5）
+  holidaySlot?: "morning" | "afternoon" | "evening";  // 休日モード時間帯別
 }
 
 export interface UserProfile {
@@ -244,8 +248,8 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
 
 /**
  * 休日モード用イベント生成
- * 移動系なし。自由タスク5枠（勉強・読書・散歩・ストレッチ・デトックス）
- * 満点=50pt（各10pt）
+ * 午前・午後・夜間の3時間帯別、各帯3タスクスロット
+ * ポイント3倍（各タスク30pt）、満点=90pt
  */
 export function buildHolidayEvents(profile: UserProfile): DailyEvent[] {
   const BASE = {
@@ -255,32 +259,68 @@ export function buildHolidayEvents(profile: UserProfile): DailyEvent[] {
     relaxAchieved: false,
     relaxPoint: 0,
   };
+  // 午前スロット（起床+30分、+90分、+150分）
+  const morningSlot1 = addMinutes(profile.wakeTime, 30);
+  const morningSlot2 = addMinutes(profile.wakeTime, 90);
+  const morningSlot3 = addMinutes(profile.wakeTime, 150);
   return [
-    { ...BASE, id: "holiday_morning", label: "朝の自分時間", emoji: "☀️",
-      scheduledTime: addMinutes(profile.wakeTime, 30),
-      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+    // ☀️ 午前ブロック
+    { ...BASE, id: "holiday_am1", label: "午前タスク 1", emoji: "☀️",
+      scheduledTime: morningSlot1,
+      timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "study", taskLabel: "勉強" },
-    { ...BASE, id: "holiday_midday", label: "午前のリラックス", emoji: "🌿",
-      scheduledTime: "10:00",
-      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+      selectedContent: "study", taskLabel: "勉強",
+      holidaySlot: "morning" as const },
+    { ...BASE, id: "holiday_am2", label: "午前タスク 2", emoji: "☀️",
+      scheduledTime: morningSlot2,
+      timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "reading", taskLabel: "読書" },
-    { ...BASE, id: "holiday_lunch", label: "昨食後の散歩", emoji: "🚶",
+      selectedContent: "reading", taskLabel: "読書",
+      holidaySlot: "morning" as const },
+    { ...BASE, id: "holiday_am3", label: "午前タスク 3", emoji: "☀️",
+      scheduledTime: morningSlot3,
+      timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "stretch", taskLabel: "ストレッチ",
+      holidaySlot: "morning" as const },
+    // 🌞 午後ブロック
+    { ...BASE, id: "holiday_pm1", label: "午後タスク 1", emoji: "🌞",
       scheduledTime: "13:00",
-      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+      timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "walk", taskLabel: "散歩" },
-    { ...BASE, id: "holiday_afternoon", label: "午後のストレッチ", emoji: "🧘",
-      scheduledTime: "15:00",
-      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+      selectedContent: "walk", taskLabel: "散歩",
+      holidaySlot: "afternoon" as const },
+    { ...BASE, id: "holiday_pm2", label: "午後タスク 2", emoji: "🌞",
+      scheduledTime: "14:30",
+      timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "stretch", taskLabel: "ストレッチ" },
-    { ...BASE, id: "holiday_night", label: "就寝前デトックス", emoji: "🌙",
+      selectedContent: "podcast", taskLabel: "ポッドキャスト",
+      holidaySlot: "afternoon" as const },
+    { ...BASE, id: "holiday_pm3", label: "午後タスク 3", emoji: "🌞",
+      scheduledTime: "16:00",
+      timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "music", taskLabel: "音楽",
+      holidaySlot: "afternoon" as const },
+    // 🌙 夜間ブロック
+    { ...BASE, id: "holiday_eve1", label: "夜間タスク 1", emoji: "🌙",
+      scheduledTime: "19:00",
+      timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "study", taskLabel: "勉強",
+      holidaySlot: "evening" as const },
+    { ...BASE, id: "holiday_eve2", label: "夜間タスク 2", emoji: "🌙",
+      scheduledTime: "20:30",
+      timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "reading", taskLabel: "読書",
+      holidaySlot: "evening" as const },
+    { ...BASE, id: "holiday_eve3", label: "就寝前デトックス", emoji: "🌙",
       scheduledTime: profile.bedTime,
-      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+      timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "detox", taskLabel: "デトックス" },
+      selectedContent: "detox", taskLabel: "デトックス",
+      holidaySlot: "evening" as const },
   ];
 }
 
@@ -367,14 +407,14 @@ export function calcTimeBonus(scheduledTime: string, achievedAt: string | undefi
  * totalPoints: モード別満点（easy=30, half=50, hard=100）
  * score: earnedPoints/totalPoints × 100（0〜100）
  */
-function calcScore(events: DailyEvent[], taskMode: TaskMode = "hard"): {
+function calcScore(events: DailyEvent[], taskMode: TaskMode = "hard", dayMode: DayMode = "normal"): {
   score: number;
   earned: number;
   total: number;
   bonusTotal: number;
 } {
-  // モード別満点
-  const modeMax = TASK_MODE_MAX[taskMode];
+  // 休日モードは満点HOLIDAY_MAX、それ以外はタスクモード満点
+  const modeMax = dayMode === "holiday" ? HOLIDAY_MAX : TASK_MODE_MAX[taskMode];
 
   // 達成ポイント合計（時間+位置+タスク）
   const baseEarned = events.reduce(
@@ -602,12 +642,12 @@ export function useScoreEngine() {
     });
   }, []);
 
-  // スコア計算（taskMode依存）
-  const { score: rawScore, earned, total, bonusTotal } = calcScore(events, taskMode);
+  // スコア計算（taskMode・ dayMode依存）
+  const { score: rawScore, earned, total, bonusTotal } = calcScore(events, taskMode, dayMode);
 
-  // 休日/出張/病欠モードは前日スコアを引き継ぎ
+  // 休日モードは当日ポイントをそのまま使用、出張・病欠は前日スコア引き継ぎ
   const effectiveScore = (() => {
-    if (dayMode === "normal") return rawScore;
+    if (dayMode === "normal" || dayMode === "holiday") return rawScore;
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yKey = yesterday.toISOString().slice(0, 10);

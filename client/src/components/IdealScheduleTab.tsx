@@ -156,37 +156,6 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
         </div>
       </SectionCard>
 
-      {/* 今日のモード */}
-      <SectionCard title="今日のモード" emoji="🌤️">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          {DAY_MODE_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => onDayModeChange(opt.value)}
-              style={{
-                padding: "10px 8px",
-                borderRadius: 12,
-                border: dayMode === opt.value
-                  ? "2px solid #c084f5"
-                  : "1.5px solid rgba(0,0,0,0.08)",
-                background: dayMode === opt.value
-                  ? "linear-gradient(135deg, rgba(244,114,182,0.1), rgba(192,132,245,0.1))"
-                  : "rgba(255,255,255,0.7)",
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "all 0.2s",
-              }}
-            >
-              <div style={{ fontSize: 18, marginBottom: 2 }}>{opt.emoji}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: dayMode === opt.value ? "#7c3aed" : "#374151", fontFamily: "'Noto Sans JP', sans-serif" }}>
-                {opt.label}
-              </div>
-              <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2, fontFamily: "'Noto Sans JP', sans-serif" }}>{opt.desc}</div>
-            </button>
-          ))}
-        </div>
-      </SectionCard>
-
       {/* 基本プロフィール */}
       <SectionCard title="基本プロフィール" emoji="🌸">
         <FieldRow label="名前（愛称でも可）">
@@ -326,41 +295,6 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
         </FieldRow>
       </SectionCard>
 
-      {/* 通勤中の学習 */}
-      <SectionCard title="通勤中の学習内容" emoji="📚">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          {LEARNING_OPTIONS.map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => update("learningContent", opt.id)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 10,
-                border: local.learningContent === opt.id
-                  ? "2px solid #c084f5"
-                  : "1.5px solid rgba(0,0,0,0.08)",
-                background: local.learningContent === opt.id
-                  ? "linear-gradient(135deg, rgba(192,132,245,0.12), rgba(244,114,182,0.08))"
-                  : "rgba(255,255,255,0.7)",
-                fontSize: 12,
-                color: local.learningContent === opt.id ? "#7c3aed" : "#374151",
-                fontWeight: local.learningContent === opt.id ? 700 : 400,
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontFamily: "'Noto Sans JP', sans-serif",
-              }}
-            >
-              <span style={{ fontSize: 15 }}>{opt.emoji}</span>
-              <span>{opt.label}</span>
-            </button>
-          ))}
-        </div>
-      </SectionCard>
-
       {/* 休日設定 */}
       <SectionCard title="休日設定" emoji="🌿">
         <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
@@ -419,8 +353,8 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
             fontSize: 11,
             border: "1px solid rgba(192,132,245,0.15)",
           }}>
-            <strong>1日最大13ポイント。</strong>獲得ポイント÷13×100がスコアになります。<br />
-            休日・出張・病欠モードは前日スコアを引き継ぎます。
+            <strong>ハードモード満点100pt。</strong>タスク内容で8〜15ptが変動します。<br />
+            休日モードは午前・午後・夜間の時間帯別タスクで<strong>3倍ポイント</strong>を獲得できます。
           </div>
         </div>
       </SectionCard>
