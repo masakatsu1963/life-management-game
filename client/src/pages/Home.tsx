@@ -1,22 +1,23 @@
 /**
  * Home.tsx - Main game screen
  * Design: Pastel Kawaii Life Manager
- * - 初回起動時はProfileSetup画面を表示
- * - フットタブ「設定」→「理想スケジュール」に変更
- * - GaugeMeterの花柄装飾なし
+ * タブ構成:
+ *   フッター: 今日 / 今週 / 理想設定 / 使い方
+ *   「今日のポイント」= 今日の比較ドーナツ（左:理想/右:今日実績）+ 今日のタスクリスト
+ *   「今週のポイント」= 週間比較ドーナツ（左:理想/右:7日累積）+ 7日間積算帯グラフ
  */
 
 import { useState, useEffect, useRef } from "react";
 import GaugeMeter from "@/components/GaugeMeter";
 import TimeDonut from "@/components/TimeDonut";
-import DifficultySlider from "@/components/DifficultySlider";
+import WeeklyDonut from "@/components/WeeklyDonut";
 import DailyProgressBar from "@/components/DailyProgressBar";
 import ScheduleList from "@/components/ScheduleList";
 import CheatPanel from "@/components/CheatPanel";
 import EmotionSelector from "@/components/EmotionSelector";
 import LocationPanel from "@/components/LocationPanel";
 import { useScoreEngine } from "@/hooks/useScoreEngine";
-import ProfileSetup, { type UserProfile, DEFAULT_PROFILE } from "@/components/ProfileSetup";
+import ProfileSetup, { type UserProfile } from "@/components/ProfileSetup";
 import IdealScheduleTab from "@/components/IdealScheduleTab";
 import HelpPage from "@/components/HelpPage";
 import { toast } from "sonner";
@@ -34,11 +35,11 @@ function loadProfile(): UserProfile | null {
   }
 }
 
+type FootTab = "today" | "week" | "ideal" | "help";
+
 export default function Home() {
   const {
     gameState,
-    difficulty,
-    changeDifficulty,
     toggleActivity,
     changeEmotion,
     useCheat,
@@ -49,7 +50,7 @@ export default function Home() {
 
   const [profile, setProfile] = useState<UserProfile | null>(() => loadProfile());
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<"dashboard" | "schedule" | "ideal" | "help">("dashboard");
+  const [activeTab, setActiveTab] = useState<FootTab>("today");
   const prevScoreRef = useRef(gameState.score.total);
   const [scoreFlash, setScoreFlash] = useState(false);
 
@@ -67,7 +68,6 @@ export default function Home() {
     }
   }, [gameState.score.total]);
 
-  // 初回起動時はプロフィール入力画面を表示
   if (!profile) {
     return <ProfileSetup onComplete={(p) => setProfile(p)} />;
   }
@@ -86,6 +86,13 @@ export default function Home() {
       style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" },
     });
   };
+
+  const FOOT_TABS: { id: FootTab; icon: string; label: string }[] = [
+    { id: "today", icon: "📊", label: "今日" },
+    { id: "week",  icon: "📈", label: "今週" },
+    { id: "ideal", icon: "🌸", label: "理想設定" },
+    { id: "help",  icon: "📖", label: "使い方" },
+  ];
 
   return (
     <div
@@ -236,64 +243,45 @@ export default function Home() {
           </div>
         )}
 
-        {/* === TABS === */}
-        <div
-          className="mb-3 flex rounded-2xl overflow-hidden p-1"
-          style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(0,0,0,0.06)" }}
-        >
-          {(["dashboard", "schedule", "ideal", "help"] as const).map((tab) => {
-            const labels = { dashboard: "📊 ダッシュ", schedule: "📋 今日", ideal: "🌸 理想設定", help: "📖 使い方" };
-            const isActive = activeTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className="flex-1 py-2 text-xs font-medium transition-all duration-200 rounded-xl"
-                style={{
-                  fontFamily: "'Noto Sans JP', sans-serif",
-                  color: isActive ? scoreScheme.main : "rgba(0,0,0,0.35)",
-                  background: isActive ? "rgba(255,255,255,0.95)" : "transparent",
-                  fontWeight: isActive ? 700 : 400,
-                  boxShadow: isActive ? `0 2px 8px ${scoreScheme.main}20` : "none",
-                }}
-              >
-                {labels[tab]}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* === DASHBOARD TAB === */}
-        {activeTab === "dashboard" && (
+        {/* =============================================
+            今日のポイント タブ
+        ============================================= */}
+        {activeTab === "today" && (
           <div className="flex flex-col gap-3">
+            {/* グラフカード */}
             <div
               className="rounded-2xl p-4"
               style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
+              <div className="text-xs font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.5)" }}>
+                📊 今日のポイント
+              </div>
               <div className="flex items-start gap-3">
-                {/* 左：円グラフ */}
-                <div className="flex flex-col items-center gap-1.5 shrink-0">
+                {/* 左：今日の比較ドーナツ */}
+                <div className="shrink-0">
                   <TimeDonut schedule={gameState.schedule} currentTime={currentTime} size={130} />
-                  <div className="flex flex-col gap-1">
-                    {[
-                      { color: "#6ee7b7", label: "達成" },
-                      { color: "#93c5fd", label: "予定" },
-                      { color: "#fca5a5", label: "未達" },
-                    ].map((l) => (
-                      <div key={l.label} className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: l.color }} />
-                        <span className="text-xs" style={{ color: "rgba(0,0,0,0.4)", fontSize: "0.6rem" }}>{l.label}</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
-                {/* 右：カテゴリ達成帯グラフ */}
+                {/* 右：今日のカテゴリ達成状況 */}
                 <div className="flex-1 min-w-0">
-                  <DailyProgressBar schedule={gameState.schedule} />
+                  <TodayCategoryBars schedule={gameState.schedule} />
                 </div>
               </div>
             </div>
 
+            {/* 今日のスケジュール */}
+            <div
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
+                  🌸 今日のスケジュール
+                </span>
+              </div>
+              <ScheduleList schedule={gameState.schedule} currentTime={currentTime} onToggle={toggleActivity} />
+            </div>
+
+            {/* 感情セレクター */}
             <div
               className="rounded-2xl p-4"
               style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
@@ -301,8 +289,40 @@ export default function Home() {
               <EmotionSelector value={gameState.emotionLevel} onChange={changeEmotion} />
             </div>
 
+            {/* 位置情報 */}
+            <LocationPanel onDistanceUpdate={setSpaceDeviation} currentDistance={gameState.spaceDeviation} />
+          </div>
+        )}
+
+        {/* =============================================
+            今週のポイント タブ
+        ============================================= */}
+        {activeTab === "week" && (
+          <div className="flex flex-col gap-3">
+            {/* 週間グラフカード */}
+            <div
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
+            >
+              <div className="text-xs font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.5)" }}>
+                📈 今週のポイント（7日間累積）
+              </div>
+              <div className="flex items-start gap-3">
+                {/* 左：週間比較ドーナツ */}
+                <div className="shrink-0">
+                  <WeeklyDonut schedule={gameState.schedule} size={130} />
+                </div>
+                {/* 右：7日間積算帯グラフ */}
+                <div className="flex-1 min-w-0">
+                  <DailyProgressBar schedule={gameState.schedule} />
+                </div>
+              </div>
+            </div>
+
+            {/* チートパネル */}
             <CheatPanel cheatPoints={gameState.cheatPoints} streak={gameState.streak} onUseCheat={useCheat} />
 
+            {/* 2人対戦Coming Soon */}
             <button
               className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition-all hover:opacity-80"
               style={{ background: "rgba(255,255,255,0.6)", border: "1.5px dashed rgba(192,132,245,0.25)", opacity: 0.7 }}
@@ -323,24 +343,6 @@ export default function Home() {
                 SOON
               </span>
             </button>
-          </div>
-        )}
-
-        {/* === TODAY SCHEDULE TAB === */}
-        {activeTab === "schedule" && (
-          <div className="flex flex-col gap-3">
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-                  🌸 今日のスケジュール
-                </span>
-              </div>
-              <ScheduleList schedule={gameState.schedule} currentTime={currentTime} onToggle={toggleActivity} />
-            </div>
-            <LocationPanel onDistanceUpdate={setSpaceDeviation} currentDistance={gameState.spaceDeviation} />
           </div>
         )}
 
@@ -368,18 +370,16 @@ export default function Home() {
           boxShadow: "0 -4px 20px rgba(244,114,182,0.08)",
         }}
       >
-        {(["dashboard", "schedule", "ideal", "help"] as const).map((tab) => {
-          const icons = { dashboard: "📊", schedule: "📋", ideal: "🌸", help: "📖" };
-          const labels = { dashboard: "ダッシュ", schedule: "今日", ideal: "理想設定", help: "使い方" };
-          const isActive = activeTab === tab;
+        {FOOT_TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
           return (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               className="flex flex-col items-center gap-0.5 py-1 px-3 rounded-2xl transition-all duration-200"
               style={{ background: isActive ? `${scoreScheme.main}15` : "transparent" }}
             >
-              <span className="text-lg">{icons[tab]}</span>
+              <span className="text-lg">{tab.icon}</span>
               <span
                 className="text-xs"
                 style={{
@@ -389,12 +389,85 @@ export default function Home() {
                   fontSize: "0.58rem",
                 }}
               >
-                {labels[tab]}
+                {tab.label}
               </span>
             </button>
           );
         })}
       </nav>
+    </div>
+  );
+}
+
+// ─── 今日のカテゴリ達成状況（帯グラフ・今日のみ） ───────────────────────
+import type { ScheduleItem, ScheduleCategory } from "@/hooks/useScoreEngine";
+
+const CATS: ScheduleCategory[] = ["wakeup","pre_work","commute_learn","break","return_learn","pre_sleep"];
+const CAT_META: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+  wakeup:        { label: "起床",   icon: "🌅", color: "#fbbf24", bg: "rgba(251,191,36,0.10)" },
+  pre_work:      { label: "出勤前", icon: "🌸", color: "#f472b6", bg: "rgba(244,114,182,0.10)" },
+  commute_learn: { label: "通勤学習", icon: "📚", color: "#60a5fa", bg: "rgba(96,165,250,0.10)" },
+  break:         { label: "休憩活用", icon: "☕", color: "#34d399", bg: "rgba(52,211,153,0.10)" },
+  return_learn:  { label: "帰宅学習", icon: "🎧", color: "#a78bfa", bg: "rgba(167,139,250,0.10)" },
+  pre_sleep:     { label: "就寝前",  icon: "🌙", color: "#c084f5", bg: "rgba(192,132,245,0.10)" },
+};
+
+function TodayCategoryBars({ schedule }: { schedule: ScheduleItem[] }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div
+        className="text-xs font-semibold mb-0.5"
+        style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.38)", fontSize: "0.62rem" }}
+      >
+        今日の達成状況
+      </div>
+      {CATS.map(cat => {
+        const meta = CAT_META[cat];
+        const items = schedule.filter(s => s.category === cat);
+        const completed = items.filter(s => s.completed).length;
+        const total = items.length;
+        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        return (
+          <div
+            key={cat}
+            className="rounded-xl px-2 py-1.5"
+            style={{ background: meta.bg }}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1">
+                <span style={{ fontSize: "0.72rem" }}>{meta.icon}</span>
+                <span
+                  className="font-medium"
+                  style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.55)", fontSize: "0.63rem" }}
+                >
+                  {meta.label}
+                </span>
+              </div>
+              <span
+                className="font-bold tabular-nums"
+                style={{ fontFamily: "'Shippori Mincho', serif", color: meta.color, fontSize: "0.72rem" }}
+              >
+                {total > 0 ? `${completed}/${total}` : "—"}
+              </span>
+            </div>
+            {/* 帯グラフ */}
+            <div
+              className="w-full rounded-full overflow-hidden"
+              style={{ height: "5px", background: "rgba(0,0,0,0.07)" }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${pct}%`,
+                  background: `linear-gradient(90deg, ${meta.color}88, ${meta.color})`,
+                  minWidth: pct > 0 ? "5px" : "0",
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
