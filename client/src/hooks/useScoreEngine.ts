@@ -54,21 +54,21 @@ export interface TaskContent {
   id: string;
   label: string;
   emoji: string;
-  taskPt: number;    // タスクポイント（固定10ptに対する係数は使わず、選択でラベルのみ変わる）
+  taskPt: number;    // タスクポイント（コンテンツ別に8〜15pt）
   relaxPt: number;   // リラックスポイント
 }
 
 export const TASK_CONTENTS: TaskContent[] = [
-  { id: "study",    label: "勉強",       emoji: "📖", taskPt: 10, relaxPt: 0 },
-  { id: "reading",  label: "読書",       emoji: "📚", taskPt: 10, relaxPt: 0 },
-  { id: "music",    label: "音楽",       emoji: "🎵", taskPt: 10, relaxPt: 0 },
-  { id: "podcast",  label: "ポッドキャスト", emoji: "🎙️", taskPt: 10, relaxPt: 0 },
-  { id: "chat",     label: "おしゃべり",   emoji: "💬", taskPt: 10, relaxPt: 0 },
-  { id: "walk",     label: "散歩",       emoji: "🚶", taskPt: 10, relaxPt: 0 },
-  { id: "stretch",  label: "ストレッチ",   emoji: "🧘", taskPt: 10, relaxPt: 0 },
-  { id: "nap",      label: "仮眠",       emoji: "😴", taskPt: 10, relaxPt: 0 },
-  { id: "detox",    label: "デトックス",   emoji: "🌿", taskPt: 10, relaxPt: 0 },
-  { id: "notebook", label: "NotebookLM", emoji: "🤖", taskPt: 10, relaxPt: 0 },
+  { id: "study",    label: "勉強",       emoji: "📖", taskPt: 15, relaxPt: 0 },  // 最高難度
+  { id: "notebook", label: "NotebookLM", emoji: "🤖", taskPt: 15, relaxPt: 0 },  // 能動的学習
+  { id: "reading",  label: "読書",       emoji: "📚", taskPt: 12, relaxPt: 0 },  // 良質インプット
+  { id: "podcast",  label: "ポッドキャスト", emoji: "🎙️", taskPt: 12, relaxPt: 0 },  // 耳学習
+  { id: "stretch",  label: "ストレッチ",   emoji: "🧘", taskPt: 12, relaxPt: 0 },  // 身体ケア
+  { id: "music",    label: "音楽",       emoji: "🎵", taskPt: 10, relaxPt: 0 },  // リラックス
+  { id: "walk",     label: "散歩",       emoji: "🚶", taskPt: 10, relaxPt: 0 },  // 軽い運動
+  { id: "chat",     label: "おしゃべり",   emoji: "💬", taskPt: 10, relaxPt: 0 },  // コミュニケーション
+  { id: "detox",    label: "デトックス",   emoji: "🌿", taskPt: 10, relaxPt: 0 },  // 就寝前標準
+  { id: "nap",      label: "仮眠",       emoji: "😴", taskPt:  8, relaxPt: 0 },  // 休息（やや低め）
 ];
 
 export interface DailyEvent {
@@ -328,8 +328,8 @@ function calcScore(events: DailyEvent[], taskMode: TaskMode = "hard"): {
 
   const earned = baseEarned + bonusTotal;
 
-  // スコア = 獲得pt / 満点pt × 100（100超えは100に丸める）
-  const score = modeMax > 0 ? Math.min(100, Math.round((earned / modeMax) * 100)) : 0;
+  // スコア = 獲得pt / 満点pt × 100（100pt超えも許容）
+  const score = modeMax > 0 ? Math.round((earned / modeMax) * 100) : 0;
 
   return { score, earned, total: modeMax, bonusTotal };
 }
@@ -501,7 +501,7 @@ export function useScoreEngine() {
     );
   }, []);
 
-  // タスクコンテンツ変更（ポイントは常に10pt固定、ラベルのみ変更）
+  // タスクコンテンツ変更（コンテンツ別ポイントを反映）
   const updateEventContent = useCallback((eventId: string, contentId: string) => {
     const c = TASK_CONTENTS.find(t => t.id === contentId);
     if (!c) return;
@@ -511,7 +511,7 @@ export function useScoreEngine() {
         return {
           ...e,
           selectedContent: contentId,
-          taskPoint: 10,  // 常に10pt固定
+          taskPoint: c.taskPt,  // コンテンツ別ポイント（8〜15pt）
           relaxPoint: 0,
           taskLabel: c.label,
         };

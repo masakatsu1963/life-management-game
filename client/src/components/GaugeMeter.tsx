@@ -17,15 +17,16 @@ interface GaugeMeterProps {
 }
 
 function scoreToColor(score: number): { main: string; light: string; hex: string } {
+  if (score > 100) return { main: "oklch(0.60 0.20 50)", light: "oklch(0.92 0.08 50)", hex: "#f59e0b" };  // 超過=ゴールド
   if (score >= 70) return { main: "oklch(0.65 0.16 165)", light: "oklch(0.92 0.06 165)", hex: "#5ec9a0" };
   if (score >= 40) return { main: "oklch(0.72 0.14 300)", light: "oklch(0.93 0.05 300)", hex: "#c084f5" };
   return { main: "oklch(0.72 0.16 355)", light: "oklch(0.93 0.06 355)", hex: "#f472b6" };
 }
 
 // スコア0 → 左端（π）、スコア100 → 右端（2π=0）
-// 時計回り：スコアが増えるほど右へ針が動く
+// 100pt超えは右端（2π）に固定（針はそれ以上動かない）
 function scoreToAngle(score: number): number {
-  return Math.PI + (score / 100) * Math.PI;
+  return Math.PI + (Math.min(score, 100) / 100) * Math.PI;
 }
 
 export default function GaugeMeter({
@@ -85,28 +86,50 @@ export default function GaugeMeter({
     }
 
     // === Active arc ===
-    // アクティブアーク：左端(π)からスコア分だけ時計回りに伸びる
-    const activeAngle = Math.PI + (currentScore / 100) * Math.PI;
+    // アクティブアーク：左端(π)からスコア分だけ時計回りに伸びる（100pt超えは全体を塗る）
+    const clampedScore = Math.min(currentScore, 100);
+    const activeAngle = Math.PI + (clampedScore / 100) * Math.PI;
+    const isOver100 = currentScore > 100;
 
-    // Gradient: rose → lavender → mint
-    const grad = ctx.createLinearGradient(cx - outerR, cy, cx + outerR, cy);
-    grad.addColorStop(0, "#f9a8d4");   // rose
-    grad.addColorStop(0.5, "#c084f5"); // lavender
-    grad.addColorStop(1, "#6ee7b7");   // mint
+    if (isOver100) {
+      // 100超え：全弧をゴールドグラデーションで塗る
+      const goldGrad = ctx.createLinearGradient(cx - outerR, cy, cx + outerR, cy);
+      goldGrad.addColorStop(0, "#fcd34d");
+      goldGrad.addColorStop(0.5, "#f59e0b");
+      goldGrad.addColorStop(1, "#fbbf24");
+      ctx.beginPath();
+      ctx.arc(cx, cy, outerR - trackW / 2, Math.PI, Math.PI * 2);
+      ctx.lineWidth = trackW;
+      ctx.strokeStyle = goldGrad;
+      ctx.lineCap = "round";
+      ctx.stroke();
+      // ゴールドグロー
+      ctx.beginPath();
+      ctx.arc(cx, cy, outerR - trackW / 2, Math.PI, Math.PI * 2);
+      ctx.lineWidth = trackW * 0.7;
+      ctx.strokeStyle = "rgba(245,158,11,0.25)";
+      ctx.stroke();
+    } else {
+      // 通常：rose → lavender → mint グラデーション
+      const grad = ctx.createLinearGradient(cx - outerR, cy, cx + outerR, cy);
+      grad.addColorStop(0, "#f9a8d4");   // rose
+      grad.addColorStop(0.5, "#c084f5"); // lavender
+      grad.addColorStop(1, "#6ee7b7");   // mint
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, outerR - trackW / 2, Math.PI, activeAngle);
-    ctx.lineWidth = trackW;
-    ctx.strokeStyle = grad;
-    ctx.lineCap = "round";
-    ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, outerR - trackW / 2, Math.PI, activeAngle);
+      ctx.lineWidth = trackW;
+      ctx.strokeStyle = grad;
+      ctx.lineCap = "round";
+      ctx.stroke();
 
-    // Soft glow on active arc
-    ctx.beginPath();
-    ctx.arc(cx, cy, outerR - trackW / 2, Math.PI, activeAngle);
-    ctx.lineWidth = trackW * 0.5;
-    ctx.strokeStyle = colors.hex + "30";
-    ctx.stroke();
+      // Soft glow on active arc
+      ctx.beginPath();
+      ctx.arc(cx, cy, outerR - trackW / 2, Math.PI, activeAngle);
+      ctx.lineWidth = trackW * 0.5;
+      ctx.strokeStyle = colors.hex + "30";
+      ctx.stroke();
+    }
 
     // === Tick marks (soft dots) ===
     for (let i = 0; i <= 10; i++) {
@@ -201,10 +224,11 @@ export default function GaugeMeter({
     }
 
     // 達成率 % (小さく)
-    const pct = showEarned && dispTotal ? Math.min(100, Math.round((dispEarned! / dispTotal) * 100)) : Math.round(currentScore);
-    ctx.font = `500 ${w * 0.036}px 'Noto Sans JP', sans-serif`;
-    ctx.fillStyle = colors.hex + "cc";
-    ctx.fillText(`${pct}%`, cx, cy + outerR * 0.30);
+    const pct = showEarned && dispTotal ? Math.round((dispEarned! / dispTotal) * 100) : Math.round(currentScore);
+    const isOver = pct > 100;
+    ctx.font = `${isOver ? 600 : 500} ${w * 0.036}px 'Noto Sans JP', sans-serif`;
+    ctx.fillStyle = isOver ? "#f59e0b" : colors.hex + "cc";
+    ctx.fillText(isOver ? `⭐ ${pct}%` : `${pct}%`, cx, cy + outerR * 0.30);
 
     ctx.restore();
   }, [label, earnedPoints, totalPoints]);

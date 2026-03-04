@@ -70,7 +70,9 @@ export default function Home() {
     if (!showSetup && !profile.name) setShowSetup(true);
   }, [profile.name]);
 
-  const scoreScheme = score >= 70
+  const scoreScheme = score > 100
+    ? { main: "#f59e0b", light: "#fef3c7", badge: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.3)", label: "超過達成！⭐" }
+    : score >= 70
     ? { main: "#34d399", light: "#d1fae5", badge: "rgba(52,211,153,0.15)", border: "rgba(52,211,153,0.3)", label: "絶好調！🌿" }
     : score >= 40
     ? { main: "#c084f5", light: "#f3e8ff", badge: "rgba(192,132,245,0.15)", border: "rgba(192,132,245,0.3)", label: "順調🌷" }
