@@ -20,7 +20,9 @@ import TodayTimeline from "@/components/TodayTimeline";
 import LocationLog from "@/components/LocationLog";
 import IdealScheduleTab from "@/components/IdealScheduleTab";
 import HelpPage from "@/components/HelpPage";
+import SetupScreen from "@/components/SetupScreen";
 import { useScoreEngine } from "@/hooks/useScoreEngine";
+import type { DayMode } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
 
 type FootTab = "today" | "week" | "ideal" | "help";
@@ -90,95 +92,15 @@ export default function Home() {
   // 初回セットアップ（名前未設定）
   if (showSetup) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#fdf6ff",
-          maxWidth: "430px",
-          margin: "0 auto",
-          fontFamily: "'Noto Sans JP', sans-serif",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "24px 20px",
+      <SetupScreen
+        onComplete={(profileData, mode) => {
+          saveProfile(profileData);
+          setTaskMode(mode);
+          setShowSetup(false);
+          // 保存後はメイン画面（今日タブ）へ即ジャンプ
+          setActiveTab("today");
         }}
-      >
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🌸</div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Shippori Mincho', serif", color: "#374151", marginBottom: 6, textAlign: "center" }}>
-          ようこそ！
-        </h1>
-        <p style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", marginBottom: 28, lineHeight: 1.7 }}>
-          まずはあなたのプロフィールを<br />設定しましょう
-        </p>
-        <div style={{ width: "100%", background: "rgba(255,255,255,0.9)", borderRadius: 20, padding: 20, border: "1.5px solid rgba(192,132,245,0.2)", boxShadow: "0 4px 20px rgba(192,132,245,0.1)" }}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 6 }}>お名前（愛称でも可）</label>
-            <input
-              type="text"
-              placeholder="例: みなみ"
-              defaultValue={profile.name}
-              id="setup-name"
-              style={{
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "1.5px solid rgba(192,132,245,0.3)",
-                background: "rgba(255,255,255,0.9)",
-                fontSize: 14,
-                color: "#374151",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 6 }}>起床時間</label>
-            <input
-              type="time"
-              defaultValue={profile.wakeTime || "06:30"}
-              id="setup-wake"
-              style={{
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "1.5px solid rgba(192,132,245,0.3)",
-                background: "rgba(255,255,255,0.9)",
-                fontSize: 14,
-                color: "#374151",
-                outline: "none",
-              }}
-            />
-          </div>
-          <button
-            onClick={() => {
-              const nameEl = document.getElementById("setup-name") as HTMLInputElement;
-              const wakeEl = document.getElementById("setup-wake") as HTMLInputElement;
-              const name = nameEl?.value.trim();
-              if (!name) { toast.error("お名前を入力してください"); return; }
-              saveProfile({ name, wakeTime: wakeEl?.value || "06:30" });
-              setShowSetup(false);
-              setActiveTab("ideal");
-              toast.success(`${name}さん、はじめましょう！🌸`, {
-                style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" },
-              });
-            }}
-            style={{
-              width: "100%",
-              padding: "14px",
-              borderRadius: 14,
-              border: "none",
-              background: "linear-gradient(135deg, #f9a8d4, #c084f5)",
-              color: "#fff",
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: "0 4px 16px rgba(192,132,245,0.3)",
-            }}
-          >
-            はじめる 🌸
-          </button>
-        </div>
-      </div>
+      />
     );
   }
 
@@ -321,6 +243,63 @@ export default function Home() {
         </div>
 
 
+
+        {/* =============================================
+            今日のモード選択（1列）3種類
+        ============================================= */}
+        {activeTab === "today" && (
+          <div
+            className="flex rounded-2xl overflow-hidden mb-1"
+            style={{ background: "rgba(255,255,255,0.72)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: 4, gap: 4 }}
+          >
+            {([
+              { value: "normal" as DayMode, emoji: "💼", label: "通常", color: "#c084f5" },
+              { value: "holiday" as DayMode, emoji: "🌸", label: "休日", color: "#f472b6" },
+              { value: "business_trip" as DayMode, emoji: "✈️", label: "出張・病欠", color: "#60a5fa" },
+            ] as const).map(opt => {
+              const isActive = dayMode === opt.value || (opt.value === "business_trip" && (dayMode === "business_trip" || dayMode === "sick"));
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    if (opt.value === "business_trip") {
+                      // 出張・病欠はトグル
+                      setDayMode(dayMode === "business_trip" ? "sick" : "business_trip");
+                    } else {
+                      setDayMode(opt.value);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "8px 4px",
+                    borderRadius: 14,
+                    border: "none",
+                    background: isActive
+                      ? `linear-gradient(135deg, ${opt.color}22, ${opt.color}11)`
+                      : "transparent",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 2,
+                    outline: isActive ? `2px solid ${opt.color}60` : "none",
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>{opt.emoji}</span>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: isActive ? 700 : 400,
+                    color: isActive ? opt.color : "rgba(0,0,0,0.35)",
+                    fontFamily: "'Noto Sans JP', sans-serif",
+                  }}>
+                    {opt.value === "business_trip" && dayMode === "sick" ? "🤒 病欠" : opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* =============================================
             今日タブ: タスク / 移動ログ サブタブ

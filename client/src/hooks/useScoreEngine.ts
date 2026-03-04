@@ -98,12 +98,16 @@ export interface DailyEvent {
 
 export interface UserProfile {
   name: string;
-  wakeTime: string;
+  wakeTime: string;            // 起床時間 "HH:MM"
   alarmEnabled: boolean;
-  homeStation: string;
-  workStation: string;
-  workAddress: string;
-  bedTime: string;
+  homeStation: string;         // 自宅最寄駅
+  workStation: string;         // 勤務先最寄駅
+  workAddress: string;         // 勤務先住所
+  startTime: string;           // 出社時間 "HH:MM"
+  lunchTime: string;           // 昼休憩開始 "HH:MM"
+  lunchDuration: number;       // 昼休憩時間（分）
+  endTime: string;             // 退社時間 "HH:MM"
+  bedTime: string;             // 就寝時間 "HH:MM"
   offDays: number[];           // 0=日,1=月,...,6=土
   learningContent: string;
   mode: DayMode;
@@ -140,6 +144,10 @@ const DEFAULT_PROFILE: UserProfile = {
   homeStation: "",
   workStation: "",
   workAddress: "",
+  startTime: "09:00",
+  lunchTime: "12:00",
+  lunchDuration: 60,
+  endTime: "18:00",
   bedTime: "22:30",
   offDays: [0, 6],
   learningContent: "英語学習",
@@ -163,25 +171,41 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
     relaxPoint: 0,
   };
 
+  // プロフィール時刻から各イベント時刻を計算
+  const startTime  = profile.startTime  || "09:00";
+  const lunchTime  = profile.lunchTime  || "12:00";
+  const endTime    = profile.endTime    || "18:00";
+
+  // 家を出る時間 = 出社時間 - 60分
+  const leaveHomeTime   = addMinutes(startTime, -60);
+  // 自宅最寄駅 = 出社時間 - 45分
+  const homeStationTime = addMinutes(startTime, -45);
+  // 勤務先最寄駅 = 出社時間 - 10分
+  const workStationTime = addMinutes(startTime, -10);
+  // 勤務先到着 = 出社時間 - 5分
+  const arriveWorkTime  = addMinutes(startTime, -5);
+  // 帰宅中タスク = 退社時間 + 10分
+  const returnCommuteTime = addMinutes(endTime, 10);
+
   // 自動取得イベント（非表示）- 移動系 計30pt
   const autoEvents: DailyEvent[] = [
     { ...BASE, id: "wake", label: "起床", emoji: "🌅",
       scheduledTime: profile.wakeTime, timePoint: 5, locationPoint: 0, taskPoint: 0,
       requiresLocation: false, requiresTask: false, isAuto: true, isLocation: false },
     { ...BASE, id: "leave_home", label: "家を出る", emoji: "🚶",
-      scheduledTime: addMinutes(profile.wakeTime, 60), timePoint: 0, locationPoint: 5, taskPoint: 0,
+      scheduledTime: leaveHomeTime, timePoint: 0, locationPoint: 5, taskPoint: 0,
       requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: "自宅周辺" },
-    { ...BASE, id: "home_station", label: "最寄駅到着", emoji: "🚆",
-      scheduledTime: addMinutes(profile.wakeTime, 75), timePoint: 0, locationPoint: 5, taskPoint: 0,
+    { ...BASE, id: "home_station", label: "最寄駅到着", emoji: "🙆",
+      scheduledTime: homeStationTime, timePoint: 0, locationPoint: 5, taskPoint: 0,
       requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.homeStation || "最寄駅" },
     { ...BASE, id: "work_station", label: "勤務先最寄駅到着", emoji: "🏙️",
-      scheduledTime: "09:00", timePoint: 0, locationPoint: 5, taskPoint: 0,
+      scheduledTime: workStationTime, timePoint: 0, locationPoint: 5, taskPoint: 0,
       requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.workStation || "勤務先最寄駅" },
     { ...BASE, id: "arrive_work", label: "勤務先到着", emoji: "🏢",
-      scheduledTime: "09:15", timePoint: 5, locationPoint: 5, taskPoint: 0,
+      scheduledTime: arriveWorkTime, timePoint: 5, locationPoint: 5, taskPoint: 0,
       requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.workAddress || "勤務先" },
     { ...BASE, id: "leave_work", label: "退勤", emoji: "👋",
-      scheduledTime: "18:00", timePoint: 5, locationPoint: 0, taskPoint: 0,
+      scheduledTime: endTime, timePoint: 5, locationPoint: 0, taskPoint: 0,
       requiresLocation: false, requiresTask: false, isAuto: true, isLocation: true },
   ];
 
@@ -193,18 +217,18 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: defaultContent, taskLabel: "NotebookLM" },
-    { ...BASE, id: "commute_task", label: "通勤中タスク", emoji: "🚆",
-      scheduledTime: addMinutes(profile.wakeTime, 80),
+    { ...BASE, id: "commute_task", label: "通勤中タスク", emoji: "🙆",
+      scheduledTime: addMinutes(leaveHomeTime, 15),
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: defaultContent, locationLabel: "電車内", taskLabel: "NotebookLM" },
     { ...BASE, id: "lunch_task", label: "お昼休みタスク", emoji: "☕",
-      scheduledTime: "12:00",
+      scheduledTime: lunchTime,
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: "walk", taskLabel: "散歩" },
     { ...BASE, id: "return_commute", label: "帰宅中タスク", emoji: "🎧",
-      scheduledTime: "18:15",
+      scheduledTime: returnCommuteTime,
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: defaultContent, locationLabel: "電車内", taskLabel: "NotebookLM" },
@@ -216,6 +240,48 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
   ];
 
   return [...autoEvents, ...taskEvents].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+}
+
+/**
+ * 休日モード用イベント生成
+ * 移動系なし。自由タスク5枠（勉強・読書・散歩・ストレッチ・デトックス）
+ * 満点=50pt（各10pt）
+ */
+export function buildHolidayEvents(profile: UserProfile): DailyEvent[] {
+  const BASE = {
+    timeAchieved: false,
+    locationAchieved: false,
+    taskAchieved: false,
+    relaxAchieved: false,
+    relaxPoint: 0,
+  };
+  return [
+    { ...BASE, id: "holiday_morning", label: "朝の自分時間", emoji: "☀️",
+      scheduledTime: addMinutes(profile.wakeTime, 30),
+      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "study", taskLabel: "勉強" },
+    { ...BASE, id: "holiday_midday", label: "午前のリラックス", emoji: "🌿",
+      scheduledTime: "10:00",
+      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "reading", taskLabel: "読書" },
+    { ...BASE, id: "holiday_lunch", label: "昨食後の散歩", emoji: "🚶",
+      scheduledTime: "13:00",
+      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "walk", taskLabel: "散歩" },
+    { ...BASE, id: "holiday_afternoon", label: "午後のストレッチ", emoji: "🧘",
+      scheduledTime: "15:00",
+      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "stretch", taskLabel: "ストレッチ" },
+    { ...BASE, id: "holiday_night", label: "就寝前デトックス", emoji: "🌙",
+      scheduledTime: profile.bedTime,
+      timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "detox", taskLabel: "デトックス" },
+  ];
 }
 
 // ===================== 旧互換: ScoreBreakdown型 =====================
@@ -442,13 +508,15 @@ export function useScoreEngine() {
       localStorage.setItem("lgm_profile_v2", JSON.stringify(next));
 
       const scheduleKeys: (keyof UserProfile)[] = [
-        "wakeTime", "bedTime", "homeStation", "workStation", "learningContent"
+        "wakeTime", "bedTime", "homeStation", "workStation", "learningContent",
+        "startTime", "lunchTime", "lunchDuration", "endTime"
       ];
       const hasScheduleChange = scheduleKeys.some(k => k in p && p[k] !== prev[k]);
       if (hasScheduleChange) {
         const todayKey = new Date().toISOString().slice(0, 10);
+        const currentDayMode = (localStorage.getItem("lgm_day_mode") as DayMode) || "normal";
         setEvents(prevEvents => {
-          const newEvents = buildDefaultEvents(next);
+          const newEvents = currentDayMode === "holiday" ? buildHolidayEvents(next) : buildDefaultEvents(next);
           const merged = newEvents.map(newEv => {
             const old = prevEvents.find(o => o.id === newEv.id);
             if (!old) return newEv;
@@ -519,10 +587,19 @@ export function useScoreEngine() {
     );
   }, []);
 
-  // デイモード変更
+  // デイモード変更（休日モード切替時はイベントを再生成）
   const setDayMode = useCallback((mode: DayMode) => {
     setDayModeState(mode);
     localStorage.setItem("lgm_day_mode", mode);
+    setProfileState(currentProfile => {
+      const todayKey = getTodayKey();
+      setEvents(() => {
+        const newEvents = mode === "holiday" ? buildHolidayEvents(currentProfile) : buildDefaultEvents(currentProfile);
+        localStorage.setItem(`lgm_events_${todayKey}`, JSON.stringify(newEvents));
+        return newEvents;
+      });
+      return currentProfile;
+    });
   }, []);
 
   // スコア計算（taskMode依存）
