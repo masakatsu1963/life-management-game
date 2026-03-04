@@ -452,11 +452,40 @@ export function useScoreEngine() {
     });
   }, [events]);
 
-  // プロフィール保存
+  // プロフィール保官（起床時間などスケジュールに関わる項目変更時はイベントを再生成）
   const saveProfile = useCallback((p: Partial<UserProfile>) => {
     setProfileState(prev => {
       const next = { ...prev, ...p };
       localStorage.setItem("lgm_profile_v2", JSON.stringify(next));
+
+      // 起床時間・学習内容・最寄駅などスケジュールに関わる変更があればイベントを再生成
+      const scheduleKeys: (keyof UserProfile)[] = [
+        "wakeTime", "bedTime", "homeStation", "workStation", "learningContent"
+      ];
+      const hasScheduleChange = scheduleKeys.some(k => k in p && p[k] !== prev[k]);
+      if (hasScheduleChange) {
+        const todayKey = new Date().toISOString().slice(0, 10);
+        // 未達成のイベントは新プロフィールで再生成、達成済みは引き継ぎ
+        setEvents(prevEvents => {
+          const newEvents = buildDefaultEvents(next);
+          const merged = newEvents.map(newEv => {
+            const old = prevEvents.find(o => o.id === newEv.id);
+            if (!old) return newEv;
+            // 達成状態とボーナスは引き継ぎ、時刻は新プロフィールで更新
+            return {
+              ...newEv,
+              timeAchieved: old.timeAchieved,
+              locationAchieved: old.locationAchieved,
+              taskAchieved: old.taskAchieved,
+              achievedAt: old.achievedAt,
+              timeBonus: old.timeBonus,
+            };
+          });
+          localStorage.setItem(`lgm_events_${todayKey}`, JSON.stringify(merged));
+          return merged;
+        });
+      }
+
       return next;
     });
   }, []);
