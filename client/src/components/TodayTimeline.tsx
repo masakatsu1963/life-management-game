@@ -9,8 +9,8 @@
  */
 
 import { useState, useEffect } from "react";
-import type { DailyEvent, PointType } from "@/hooks/useScoreEngine";
-import { TASK_CONTENTS, calcTimeBonus } from "@/hooks/useScoreEngine";
+import type { DailyEvent, PointType, TaskMode } from "@/hooks/useScoreEngine";
+import { TASK_CONTENTS, calcTimeBonus, TASK_MODE_EVENTS } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
 
 interface Props {
@@ -21,6 +21,7 @@ interface Props {
   earnedPoints: number;
   totalPoints: number;
   bonusTotal?: number;
+  taskMode?: TaskMode;
 }
 
 function nowStr(d: Date): string {
@@ -45,6 +46,7 @@ export default function TodayTimeline({
   earnedPoints,
   totalPoints,
   bonusTotal = 0,
+  taskMode = "hard",
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [liveTime, setLiveTime] = useState(new Date());
@@ -54,8 +56,13 @@ export default function TodayTimeline({
     return () => clearInterval(id);
   }, []);
 
-  // タスク選択型イベントのみ表示（isAuto=falseかつisLocation=false）
-  const visibleEvents = events.filter(e => !e.isAuto && !e.isLocation);
+  // タスクモードに応じて表示するイベントをフィルタリング
+  const allowedIds = TASK_MODE_EVENTS[taskMode];
+  const visibleEvents = events.filter(e => {
+    if (e.isAuto || e.isLocation) return false;  // 自動取得・移動系は非表示
+    if (taskMode === "easy") return false;         // イージーはタスクなし
+    return allowedIds.includes(e.id);             // ハーフ/ハードは許可IDのみ
+  });
   const now = nowStr(currentTime);
   const currentIdx = visibleEvents.findIndex(e => e.scheduledTime > now);
 

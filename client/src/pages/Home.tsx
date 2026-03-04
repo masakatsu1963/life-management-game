@@ -37,6 +37,8 @@ export default function Home() {
     earnedPoints,
     totalPoints,
     bonusTotal,
+    taskMode,
+    setTaskMode,
     dayMode,
     setDayMode,
     currentTime,
@@ -315,23 +317,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* === NEXT EVENT BANNER === */}
-        {nextEvent && (
-          <div
-            className="mb-3 px-4 py-3 rounded-2xl flex items-center gap-3"
-            style={{ background: "rgba(255,255,255,0.75)", border: "1.5px solid rgba(192,132,245,0.2)", boxShadow: "0 2px 10px rgba(192,132,245,0.08)" }}
-          >
-            <span className="text-xl">⏱</span>
-            <div className="flex-1">
-              <span className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)" }}>
-                次のイベント
-              </span>
-              <div className="text-sm font-bold" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.65)" }}>
-                {nextEvent.emoji} {nextEvent.scheduledTime} {nextEvent.label}
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* =============================================
             今日タブ: タスク / 移動ログ サブタブ
@@ -385,6 +371,7 @@ export default function Home() {
                   earnedPoints={earnedPoints}
                   totalPoints={totalPoints}
                   bonusTotal={bonusTotal}
+                  taskMode={taskMode}
                 />
               </div>
             )}
@@ -528,6 +515,8 @@ export default function Home() {
             onSave={saveProfile}
             dayMode={dayMode}
             onDayModeChange={setDayMode}
+            taskMode={taskMode}
+            onTaskModeChange={setTaskMode}
           />
         )}
 

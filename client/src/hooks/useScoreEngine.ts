@@ -25,6 +25,14 @@ import { useState, useEffect, useCallback } from "react";
 
 export type PointType = "time" | "location" | "task" | "relax";
 export type DayMode = "normal" | "holiday" | "business_trip" | "sick";
+export type TaskMode = "easy" | "half" | "hard";
+
+// タスクモード別に表示するイベントIDセット
+export const TASK_MODE_EVENTS: Record<TaskMode, string[]> = {
+  easy:  [],  // 移動ログのみ（タスクイベントなし）
+  half:  ["commute_task", "return_commute"],  // 通勤中・帰宅中のみ
+  hard:  ["morning_task", "commute_task", "lunch_task", "return_commute", "bedtime_detox"],  // 全タスク
+};
 
 // タスクコンテンツ別ポイント定義
 export interface TaskContent {
@@ -378,6 +386,16 @@ export function useScoreEngine() {
   // 旧互換: difficulty (理想設定タブ等で使用)
   const [difficulty] = useState<Difficulty>("normal");
 
+  // タスクモード（イージー/ハーフ/ハード）
+  const [taskMode, setTaskModeState] = useState<TaskMode>(() => {
+    return (localStorage.getItem("lgm_task_mode") as TaskMode) || "hard";
+  });
+
+  const setTaskMode = useCallback((mode: TaskMode) => {
+    setTaskModeState(mode);
+    localStorage.setItem("lgm_task_mode", mode);
+  }, []);
+
   // 1分毎に時刻更新
   useEffect(() => {
     const id = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -586,6 +604,8 @@ export function useScoreEngine() {
     totalPoints: total,
     bonusTotal,
     calcTimeBonus,
+    taskMode,
+    setTaskMode,
     dayMode,
     setDayMode,
     currentTime,

@@ -12,7 +12,7 @@
  */
 
 import { useState } from "react";
-import type { UserProfile, DayMode } from "@/hooks/useScoreEngine";
+import type { UserProfile, DayMode, TaskMode } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
 
 interface Props {
@@ -20,7 +20,15 @@ interface Props {
   onSave: (p: Partial<UserProfile>) => void;
   dayMode: DayMode;
   onDayModeChange: (m: DayMode) => void;
+  taskMode: TaskMode;
+  onTaskModeChange: (m: TaskMode) => void;
 }
+
+const TASK_MODE_OPTIONS: { value: TaskMode; label: string; emoji: string; desc: string; tasks: string }[] = [
+  { value: "easy",  label: "イージー",  emoji: "🚶", desc: "移動ログのみ", tasks: "移動イベントのみ自動記録" },
+  { value: "half",  label: "ハーフ",   emoji: "🚆", desc: "通勤中・帰宅中のみ", tasks: "通勤中タスク＋帰宅中タスク" },
+  { value: "hard",  label: "ハード",   emoji: "🌟", desc: "全タスク完全版", tasks: "全5タスク（出勤前・通勤・昂休・帰宅・就对前）" },
+];
 
 const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -44,7 +52,7 @@ const DAY_MODE_OPTIONS: { value: DayMode; label: string; emoji: string; desc: st
   { value: "sick",          label: "病欠モード",   emoji: "🤒", desc: "前日スコアを引き継ぎ" },
 ];
 
-export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeChange }: Props) {
+export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeChange, taskMode, onTaskModeChange }: Props) {
   const [local, setLocal] = useState<UserProfile>({ ...profile });
   const [gpsLoading, setGpsLoading] = useState<"home" | "work" | null>(null);
   const [saved, setSaved] = useState(false);
@@ -108,8 +116,48 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
   return (
     <div style={{ paddingBottom: 80 }}>
 
+      {/* タスクモード選択 */}
+      <SectionCard title="タスクモード" emoji="🎮">
+        <p style={{ fontSize: 11, color: "#9ca3af", marginBottom: 10, fontFamily: "'Noto Sans JP', sans-serif" }}>
+          タイムラインに表示するタスクの量を選びましょう
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {TASK_MODE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => onTaskModeChange(opt.value)}
+              style={{
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: taskMode === opt.value
+                  ? "2px solid #c084f5"
+                  : "1.5px solid rgba(0,0,0,0.08)",
+                background: taskMode === opt.value
+                  ? "linear-gradient(135deg, rgba(244,114,182,0.12), rgba(192,132,245,0.12))"
+                  : "rgba(255,255,255,0.7)",
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "all 0.2s",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <span style={{ fontSize: 22 }}>{opt.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: taskMode === opt.value ? "#7c3aed" : "#374151", fontFamily: "'Noto Sans JP', sans-serif" }}>
+                  {opt.label}
+                  {taskMode === opt.value && <span style={{ marginLeft: 6, fontSize: 10, background: "#c084f5", color: "#fff", borderRadius: 6, padding: "1px 6px" }}>選択中</span>}
+                </div>
+                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2, fontFamily: "'Noto Sans JP', sans-serif" }}>{opt.tasks}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </SectionCard>
+
       {/* 今日のモード */}
-      <SectionCard title="今日のモード" emoji="🎮">
+      <SectionCard title="今日のモード" emoji="🌤️">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {DAY_MODE_OPTIONS.map(opt => (
             <button
