@@ -27,7 +27,7 @@
  * 時間精度ボーナス: ちょうど+5pt、±1分=+4pt...±5分以上=0pt（別枠）
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // ===================== 型定義 =====================
 
@@ -516,9 +516,88 @@ export function useScoreEngine() {
     localStorage.setItem("lgm_task_mode", mode);
   }, []);
 
-  // 1分毎に時刻更新
+  // 起動時：過去7日分のイベントデータをスキャンして週間ログに保存
   useEffect(() => {
-    const id = setInterval(() => setCurrentTime(new Date()), 60000);
+    const todayKey = getTodayKey();
+    const savedTaskMode = (localStorage.getItem("lgm_task_mode") as TaskMode) || "hard";
+    const savedDayMode = (localStorage.getItem("lgm_day_mode") as DayMode) || "normal";
+    const newLogs: WeeklyLog[] = [];
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateKey = d.toISOString().slice(0, 10);
+      const raw = localStorage.getItem(`lgm_events_${dateKey}`);
+      if (!raw) continue;
+      try {
+        const pastEvents: DailyEvent[] = JSON.parse(raw);
+        const { score: s, earned: e } = calcScore(pastEvents, savedTaskMode, savedDayMode);
+        const achievements: Record<string, { time: boolean; location: boolean; task: boolean }> = {};
+        pastEvents.forEach(ev => {
+          achievements[ev.id] = { time: ev.timeAchieved, location: ev.locationAchieved, task: ev.taskAchieved };
+        });
+        newLogs.push({ date: dateKey, score: s, earnedPoints: e, eventAchievements: achievements });
+      } catch {}
+    }
+    if (newLogs.length > 0) {
+      setWeeklyLogs(prev => {
+        // 今日のログは保持し、過去分は新しいデータで上書き
+        const todayLog = prev.find(l => l.date === todayKey);
+        const merged = [
+          ...newLogs,
+          ...(todayLog ? [todayLog] : []),
+        ].sort((a, b) => a.date.localeCompare(b.date)).slice(-7);
+        localStorage.setItem("lgm_weekly_logs_v2", JSON.stringify(merged));
+        return merged;
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 1分毎に時刻更新 + 日付切り替わり検出
+  const lastDateRef = useRef(getTodayKey());
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = new Date();
+      const newDateKey = now.toISOString().slice(0, 10);
+      const prevDateKey = lastDateRef.current;
+      if (newDateKey !== prevDateKey) {
+        // 日付が変わった → 前日のイベントデータからログを保存してイベントをリセット
+        const prevEventsRaw = localStorage.getItem(`lgm_events_${prevDateKey}`);
+        if (prevEventsRaw) {
+          try {
+            const prevEvents: DailyEvent[] = JSON.parse(prevEventsRaw);
+            const prevMode = (localStorage.getItem("lgm_day_mode") as DayMode) || "normal";
+            const prevTaskMode = (localStorage.getItem("lgm_task_mode") as TaskMode) || "hard";
+            const { score: prevScore, earned: prevEarned } = calcScore(prevEvents, prevTaskMode, prevMode);
+            const achievements: Record<string, { time: boolean; location: boolean; task: boolean }> = {};
+            prevEvents.forEach(e => {
+              achievements[e.id] = { time: e.timeAchieved, location: e.locationAchieved, task: e.taskAchieved };
+            });
+            setWeeklyLogs(prev => {
+              const filtered = prev.filter(l => l.date !== prevDateKey);
+              const updated = [...filtered, { date: prevDateKey, score: prevScore, earnedPoints: prevEarned, eventAchievements: achievements }]
+                .sort((a, b) => a.date.localeCompare(b.date))
+                .slice(-7);
+              localStorage.setItem("lgm_weekly_logs_v2", JSON.stringify(updated));
+              return updated;
+            });
+          } catch {}
+        }
+        // 新しい日のイベントを生成
+        lastDateRef.current = newDateKey;
+        const currentProfile = (() => {
+          try {
+            const ps = localStorage.getItem("lgm_profile_v2");
+            return ps ? { ...DEFAULT_PROFILE, ...JSON.parse(ps) } : DEFAULT_PROFILE;
+          } catch { return DEFAULT_PROFILE; }
+        })();
+        const currentDayMode = (localStorage.getItem("lgm_day_mode") as DayMode) || "normal";
+        const newEvents = currentDayMode === "holiday" ? buildHolidayEvents(currentProfile) : buildDefaultEvents(currentProfile);
+        setEvents(newEvents);
+        localStorage.setItem(`lgm_events_${newDateKey}`, JSON.stringify(newEvents));
+      }
+      setCurrentTime(now);
+    }, 60000);
     return () => clearInterval(id);
   }, []);
 
