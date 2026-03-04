@@ -302,13 +302,6 @@ export default function Home() {
               className="rounded-2xl p-4"
               style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
-              <DifficultySlider value={difficulty} onChange={changeDifficulty} />
-            </div>
-
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-            >
               <EmotionSelector value={gameState.emotionLevel} onChange={changeEmotion} />
             </div>
 
