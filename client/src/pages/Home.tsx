@@ -1,10 +1,10 @@
 /**
  * Home.tsx - Main game screen
- * Design: Dark Gaming Gauge
- * - Deep blue-black background, neon accents
- * - Orbitron for numbers, Noto Sans JP for labels
+ * Design: Pastel Kawaii Life Manager
+ * - Soft blush pink / lavender / mint cream palette
+ * - Shippori Mincho for headings, Noto Sans JP for body
+ * - Watercolor hero background with floral gauge decoration
  * - Mobile-first 390px single column layout
- * - Real-time needle meter + 24h donut chart
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -15,10 +15,13 @@ import ScoreBreakdownPanel from "@/components/ScoreBreakdownPanel";
 import ScheduleList from "@/components/ScheduleList";
 import CheatPanel from "@/components/CheatPanel";
 import EmotionSelector from "@/components/EmotionSelector";
+import LocationPanel from "@/components/LocationPanel";
 import { useScoreEngine } from "@/hooks/useScoreEngine";
 import ScheduleEditor from "@/components/ScheduleEditor";
-import LocationPanel from "@/components/LocationPanel";
 import { toast } from "sonner";
+
+const HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663145989169/V3mzZwvpdi82dLMoVHx8Pr/hero-bg-JeDdhMmnmpUPNBZ3PigiRd.webp";
+const FLOWER_DECO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663145989169/V3mzZwvpdi82dLMoVHx8Pr/gauge-deco-EE7ciXtuBtnWH5NUxLfPi4.png";
 
 export default function Home() {
   const {
@@ -34,21 +37,16 @@ export default function Home() {
   } = useScoreEngine();
 
   const [showEditor, setShowEditor] = useState(false);
-
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState<"dashboard" | "schedule" | "settings">("dashboard");
   const prevScoreRef = useRef(gameState.score.total);
   const [scoreFlash, setScoreFlash] = useState(false);
 
-  // Update clock every second
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Flash effect when score changes significantly
   useEffect(() => {
     const diff = Math.abs(gameState.score.total - prevScoreRef.current);
     if (diff >= 2) {
@@ -59,110 +57,80 @@ export default function Home() {
   }, [gameState.score.total]);
 
   const score = gameState.score.total;
-  const scoreColor = score >= 70 ? "#22d97a" : score >= 40 ? "#f0b429" : "#f05252";
-  const scoreLabel = score >= 80 ? "絶好調！" : score >= 60 ? "順調" : score >= 40 ? "要注意" : "ピンチ！";
 
-  // Background glow based on score
-  const bgGlow = score >= 70
-    ? "radial-gradient(ellipse at 50% 0%, rgba(34,217,122,0.08) 0%, transparent 60%)"
+  // Score-based color scheme
+  const scoreScheme = score >= 70
+    ? { main: "#34d399", light: "#d1fae5", badge: "rgba(52,211,153,0.15)", border: "rgba(52,211,153,0.3)", label: "絶好調！🌿" }
     : score >= 40
-    ? "radial-gradient(ellipse at 50% 0%, rgba(240,180,41,0.08) 0%, transparent 60%)"
-    : "radial-gradient(ellipse at 50% 0%, rgba(240,82,82,0.10) 0%, transparent 60%)";
+    ? { main: "#c084f5", light: "#f3e8ff", badge: "rgba(192,132,245,0.15)", border: "rgba(192,132,245,0.3)", label: "順調🌷" }
+    : { main: "#f472b6", light: "#fce7f3", badge: "rgba(244,114,182,0.15)", border: "rgba(244,114,182,0.3)", label: "がんばろう🌸" };
 
-  const handleDemoTick = () => {
+  const handleRefresh = () => {
     forceUpdateScore();
-    toast.info("スコアを更新しました", {
-      style: { background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", color: "#f0f0f0" },
+    toast.success("スコアを更新しました ✨", {
+      style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" },
     });
   };
 
   return (
     <div
-      className="min-h-screen flex flex-col"
-      style={{
-        background: "oklch(0.12 0.025 265)",
-        fontFamily: "'Noto Sans JP', sans-serif",
-        maxWidth: "430px",
-        margin: "0 auto",
-        position: "relative",
-        overflow: "hidden",
-      }}
+      className="min-h-screen flex flex-col relative overflow-hidden"
+      style={{ background: "#fdf6ff", maxWidth: "430px", margin: "0 auto", fontFamily: "'Noto Sans JP', sans-serif" }}
     >
-      {/* Background grid */}
+      {/* Hero background (top section only) */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute top-0 left-0 right-0 pointer-events-none"
         style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
+          height: "340px",
+          backgroundImage: `url(${HERO_BG})`,
+          backgroundSize: "cover",
+          backgroundPosition: "top center",
+          opacity: 0.35,
+          maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)",
         }}
       />
 
-      {/* Score-based glow overlay */}
-      <div
-        className="absolute inset-0 pointer-events-none transition-all duration-1000"
-        style={{ background: bgGlow }}
-      />
-
-      {/* Flash overlay */}
+      {/* Score flash */}
       {scoreFlash && (
         <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `${scoreColor}15`,
-            animation: "pulse 0.6s ease-out",
-          }}
+          className="absolute inset-0 pointer-events-none z-10"
+          style={{ background: `${scoreScheme.main}10`, animation: "shimmer-in 0.6s ease-out" }}
         />
       )}
 
       {/* Header */}
       <header
-        className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+        className="relative z-10 flex items-center justify-between px-4 pt-5 pb-3"
       >
         <div className="flex items-center gap-2">
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
-            style={{ background: `${scoreColor}22`, border: `1px solid ${scoreColor}44` }}
+            className="w-8 h-8 rounded-2xl flex items-center justify-center text-base"
+            style={{ background: "rgba(255,255,255,0.85)", boxShadow: "0 2px 8px rgba(244,114,182,0.2)", border: "1.5px solid rgba(244,114,182,0.2)" }}
           >
-            ⚡
+            🌸
           </div>
           <div>
-            <div
-              className="text-xs font-bold"
-              style={{ fontFamily: "Orbitron, monospace", color: scoreColor, lineHeight: 1.2 }}
-            >
-              LIFE MANAGER
+            <div className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.65)", lineHeight: 1.2 }}>
+              Life Manager
             </div>
-            <div
-              className="text-xs"
-              style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.6rem" }}
-            >
+            <div className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontSize: "0.6rem" }}>
               ソロモード
             </div>
           </div>
         </div>
 
-        {/* Current time */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div
-            className="text-xs"
-            style={{ fontFamily: "Orbitron, monospace", color: "rgba(255,255,255,0.5)" }}
+            className="text-xs px-2 py-1 rounded-full"
+            style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)", background: "rgba(255,255,255,0.7)" }}
           >
-            {currentTime.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            {currentTime.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}
           </div>
-
-          {/* Warning indicator */}
           {gameState.isWarning && (
             <div
-              className="px-2 py-0.5 rounded text-xs font-bold"
-              style={{
-                fontFamily: "Orbitron, monospace",
-                color: "#f05252",
-                background: "rgba(240,82,82,0.15)",
-                border: "1px solid rgba(240,82,82,0.3)",
-                animation: "pulse-red 0.8s ease-in-out infinite",
-              }}
+              className="px-2 py-0.5 rounded-full text-xs font-bold pulse-warn"
+              style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "#dc2626", background: "rgba(252,165,165,0.2)", border: "1px solid rgba(252,165,165,0.4)" }}
             >
               ⚠ 遅延
             </div>
@@ -171,149 +139,93 @@ export default function Home() {
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-24">
+      <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-28">
 
-        {/* === GAUGE SECTION === */}
+        {/* === GAUGE CARD === */}
         <div
-          className="mt-3 rounded-2xl overflow-hidden"
+          className="rounded-3xl overflow-hidden mb-3"
           style={{
-            background: "rgba(255,255,255,0.03)",
-            border: `1px solid ${scoreColor}33`,
-            boxShadow: `0 0 30px ${scoreColor}15`,
+            background: "rgba(255,255,255,0.82)",
+            border: `1.5px solid ${scoreScheme.border}`,
+            boxShadow: `0 8px 32px ${scoreScheme.main}18, 0 2px 8px rgba(0,0,0,0.06)`,
+            backdropFilter: "blur(12px)",
           }}
         >
-          {/* Score label */}
-          <div className="flex items-center justify-between px-4 pt-3">
+          {/* Score label row */}
+          <div className="flex items-center justify-between px-4 pt-4">
             <span
-              className="text-xs font-bold px-2 py-0.5 rounded-full"
-              style={{
-                fontFamily: "'Noto Sans JP', sans-serif",
-                color: scoreColor,
-                background: `${scoreColor}20`,
-                border: `1px solid ${scoreColor}44`,
-              }}
+              className="text-xs font-bold px-3 py-1 rounded-full"
+              style={{ fontFamily: "'Noto Sans JP', sans-serif", color: scoreScheme.main, background: scoreScheme.badge, border: `1px solid ${scoreScheme.border}` }}
             >
-              {scoreLabel}
+              {scoreScheme.label}
             </span>
             <button
-              onClick={handleDemoTick}
-              className="text-xs px-2 py-0.5 rounded transition-all hover:bg-white/10"
-              style={{ color: "rgba(255,255,255,0.3)", fontFamily: "'Noto Sans JP', sans-serif" }}
+              onClick={handleRefresh}
+              className="text-xs px-2 py-1 rounded-full transition-all hover:bg-pink-50"
+              style={{ color: "rgba(0,0,0,0.3)", fontFamily: "'Noto Sans JP', sans-serif" }}
             >
               更新
             </button>
           </div>
 
           {/* Needle meter */}
-          <div className="px-2 pb-1">
-            <GaugeMeter score={score} size={340} animated />
+          <div className="px-2 pt-1 pb-2">
+            <GaugeMeter
+              score={score}
+              size={340}
+              animated
+              flowerDecoUrl={FLOWER_DECO}
+            />
           </div>
 
           {/* Status row */}
           <div
             className="flex items-center justify-around px-4 py-3"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+            style={{ borderTop: `1px solid ${scoreScheme.border}30` }}
           >
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-base">⏰</span>
-              <span
-                className="text-xs font-bold"
-                style={{
-                  fontFamily: "Orbitron, monospace",
-                  color: gameState.timeDeviation <= 5 ? "#22d97a" : "#f05252",
-                }}
-              >
-                {gameState.timeDeviation === 0 ? "±0分" : `-${gameState.timeDeviation}分`}
-              </span>
-              <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.6rem" }}>
-                時間ズレ
-              </span>
-            </div>
-
-            <div className="w-px h-8 bg-white/10" />
-
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-base">📍</span>
-              <span
-                className="text-xs font-bold"
-                style={{
-                  fontFamily: "Orbitron, monospace",
-                  color: gameState.spaceDeviation <= 0.1 ? "#22d97a" : "#f0b429",
-                }}
-              >
-                {gameState.spaceDeviation.toFixed(1)}km
-              </span>
-              <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.6rem" }}>
-                距離
-              </span>
-            </div>
-
-            <div className="w-px h-8 bg-white/10" />
-
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-base">💎</span>
-              <span
-                className="text-xs font-bold"
-                style={{ fontFamily: "Orbitron, monospace", color: "#f0b429" }}
-              >
-                {gameState.cheatPoints}CP
-              </span>
-              <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.6rem" }}>
-                チート残
-              </span>
-            </div>
-
-            <div className="w-px h-8 bg-white/10" />
-
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-base">🔥</span>
-              <span
-                className="text-xs font-bold"
-                style={{ fontFamily: "Orbitron, monospace", color: "#f0b429" }}
-              >
-                {gameState.streak}日
-              </span>
-              <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.6rem" }}>
-                連続
-              </span>
-            </div>
+            {[
+              { icon: "⏰", value: gameState.timeDeviation === 0 ? "±0分" : `-${gameState.timeDeviation}分`, label: "時間ズレ", color: gameState.timeDeviation <= 5 ? "#34d399" : "#f472b6" },
+              { icon: "📍", value: `${gameState.spaceDeviation.toFixed(1)}km`, label: "距離", color: gameState.spaceDeviation <= 0.1 ? "#34d399" : "#c084f5" },
+              { icon: "💎", value: `${gameState.cheatPoints}CP`, label: "チート残", color: "#a855f7" },
+              { icon: "🔥", value: `${gameState.streak}日`, label: "連続", color: "#f59e0b" },
+            ].map((item, i, arr) => (
+              <div key={item.label} className="flex items-center">
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-base">{item.icon}</span>
+                  <span className="text-xs font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: item.color }}>
+                    {item.value}
+                  </span>
+                  <span className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontSize: "0.58rem" }}>
+                    {item.label}
+                  </span>
+                </div>
+                {i < arr.length - 1 && <div className="w-px h-8 mx-3" style={{ background: "rgba(0,0,0,0.07)" }} />}
+              </div>
+            ))}
           </div>
         </div>
 
         {/* === NEXT EVENT BANNER === */}
         {gameState.nextEvent && (
           <div
-            className="mt-3 px-4 py-2.5 rounded-xl flex items-center gap-3"
-            style={{
-              background: "rgba(240,180,41,0.08)",
-              border: "1px solid rgba(240,180,41,0.2)",
-            }}
+            className="mb-3 px-4 py-3 rounded-2xl flex items-center gap-3"
+            style={{ background: "rgba(255,255,255,0.75)", border: "1.5px solid rgba(192,132,245,0.2)", boxShadow: "0 2px 10px rgba(192,132,245,0.08)" }}
           >
-            <span className="text-lg">⏱</span>
+            <span className="text-xl float-gentle">⏱</span>
             <div className="flex-1">
-              <span
-                className="text-xs"
-                style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.5)" }}
-              >
-                次のイベントまで{gameState.minutesUntilNext}分
+              <span className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)" }}>
+                次のイベントまで {gameState.minutesUntilNext}分
               </span>
-              <div
-                className="text-sm font-bold"
-                style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.85)" }}
-              >
+              <div className="text-sm font-bold" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.65)" }}>
                 {gameState.nextEvent.time} {gameState.nextEvent.activity}
               </div>
             </div>
             {gameState.minutesUntilNext <= 14 && (
               <span
-                className="text-xs font-bold px-2 py-1 rounded"
-                style={{
-                  fontFamily: "Orbitron, monospace",
-                  color: "#f0b429",
-                  background: "rgba(240,180,41,0.15)",
-                }}
+                className="text-xs font-bold px-2 py-1 rounded-full"
+                style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "#a855f7", background: "rgba(192,132,245,0.15)" }}
               >
-                挽回可能
+                挽回可能✨
               </span>
             )}
           </div>
@@ -321,22 +233,23 @@ export default function Home() {
 
         {/* === TABS === */}
         <div
-          className="mt-4 flex rounded-xl overflow-hidden"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+          className="mb-3 flex rounded-2xl overflow-hidden p-1"
+          style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(0,0,0,0.06)" }}
         >
           {(["dashboard", "schedule", "settings"] as const).map((tab) => {
-            const labels = { dashboard: "📊 ダッシュボード", schedule: "📋 スケジュール", settings: "⚙️ 設定" };
+            const labels = { dashboard: "📊 ダッシュ", schedule: "📋 スケジュール", settings: "⚙️ 設定" };
             const isActive = activeTab === tab;
             return (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className="flex-1 py-2.5 text-xs font-medium transition-all duration-200"
+                className="flex-1 py-2 text-xs font-medium transition-all duration-200 rounded-xl"
                 style={{
                   fontFamily: "'Noto Sans JP', sans-serif",
-                  color: isActive ? "#fff" : "rgba(255,255,255,0.35)",
-                  background: isActive ? `${scoreColor}22` : "transparent",
-                  borderBottom: isActive ? `2px solid ${scoreColor}` : "2px solid transparent",
+                  color: isActive ? scoreScheme.main : "rgba(0,0,0,0.35)",
+                  background: isActive ? "rgba(255,255,255,0.95)" : "transparent",
+                  fontWeight: isActive ? 700 : 400,
+                  boxShadow: isActive ? `0 2px 8px ${scoreScheme.main}20` : "none",
                 }}
               >
                 {labels[tab]}
@@ -347,43 +260,30 @@ export default function Home() {
 
         {/* === DASHBOARD TAB === */}
         {activeTab === "dashboard" && (
-          <div className="mt-3 flex flex-col gap-3">
+          <div className="flex flex-col gap-3">
             {/* 24h donut + breakdown */}
             <div
-              className="rounded-xl p-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
               <div className="flex items-start gap-4">
-                {/* Donut */}
                 <div className="flex flex-col items-center gap-2">
-                  <TimeDonut
-                    schedule={gameState.schedule}
-                    currentTime={currentTime}
-                    size={140}
-                  />
-                  {/* Legend */}
+                  <TimeDonut schedule={gameState.schedule} currentTime={currentTime} size={140} />
                   <div className="flex flex-col gap-1">
                     {[
-                      { color: "#22d97a", label: "達成" },
-                      { color: "#60a5fa", label: "予定" },
-                      { color: "#f05252", label: "未達" },
+                      { color: "#6ee7b7", label: "達成" },
+                      { color: "#93c5fd", label: "予定" },
+                      { color: "#fca5a5", label: "未達" },
                     ].map((l) => (
                       <div key={l.label} className="flex items-center gap-1.5">
                         <div className="w-2 h-2 rounded-full" style={{ background: l.color }} />
-                        <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.6rem" }}>
-                          {l.label}
-                        </span>
+                        <span className="text-xs" style={{ color: "rgba(0,0,0,0.4)", fontSize: "0.6rem" }}>{l.label}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-
-                {/* Score breakdown */}
                 <div className="flex-1">
-                  <div
-                    className="text-xs font-medium mb-2"
-                    style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.5)" }}
-                  >
+                  <div className="text-xs font-medium mb-2" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)" }}>
                     スコア内訳
                   </div>
                   <ScoreBreakdownPanel
@@ -395,164 +295,126 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Difficulty slider */}
+            {/* Difficulty */}
             <div
-              className="rounded-xl p-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
               <DifficultySlider value={difficulty} onChange={changeDifficulty} />
             </div>
 
-            {/* Emotion selector */}
+            {/* Emotion */}
             <div
-              className="rounded-xl p-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
               <EmotionSelector value={gameState.emotionLevel} onChange={changeEmotion} />
             </div>
 
             {/* Cheat panel */}
-            <CheatPanel
-              cheatPoints={gameState.cheatPoints}
-              streak={gameState.streak}
-              onUseCheat={useCheat}
-            />
+            <CheatPanel cheatPoints={gameState.cheatPoints} streak={gameState.streak} onUseCheat={useCheat} />
 
             {/* Battle placeholder */}
-            <div
-              className="rounded-xl p-4 flex items-center gap-3"
+            <button
+              className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition-all hover:opacity-80"
               style={{
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                opacity: 0.6,
+                background: "rgba(255,255,255,0.6)",
+                border: "1.5px dashed rgba(192,132,245,0.25)",
+                opacity: 0.7,
               }}
-              onClick={() => toast.info("2人対戦は Week3 実装予定です", {
-                style: { background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", color: "#f0f0f0" },
+              onClick={() => toast.info("2人対戦は Week3 実装予定です 🎮", {
+                style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" },
               })}
             >
               <span className="text-xl">⚔️</span>
               <div className="flex-1">
-                <div
-                  className="text-sm font-bold"
-                  style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.5)" }}
-                >
+                <div className="text-sm font-bold" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.45)" }}>
                   2人対戦モード
                 </div>
-                <div
-                  className="text-xs"
-                  style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.25)" }}
-                >
+                <div className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.25)" }}>
                   招待コードで友達と対戦（Coming Soon）
                 </div>
               </div>
               <span
-                className="text-xs px-2 py-1 rounded"
-                style={{
-                  fontFamily: "Orbitron, monospace",
-                  color: "rgba(255,255,255,0.2)",
-                  background: "rgba(255,255,255,0.05)",
-                }}
+                className="text-xs px-2 py-1 rounded-full"
+                style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(192,132,245,0.6)", background: "rgba(192,132,245,0.08)" }}
               >
                 SOON
               </span>
-            </div>
+            </button>
           </div>
         )}
 
         {/* === SCHEDULE TAB === */}
         {activeTab === "schedule" && (
-          <div className="mt-3 flex flex-col gap-3">
+          <div className="flex flex-col gap-3">
             <div
-              className="rounded-xl p-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
               <div className="flex items-center justify-between mb-3">
-                <span
-                  className="text-sm font-bold"
-                  style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.7)" }}
-                >
-                  今日のスケジュール
+                <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
+                  🌸 今日のスケジュール
                 </span>
                 <button
                   onClick={() => setShowEditor(true)}
-                  className="text-xs px-2 py-1 rounded-lg transition-all hover:bg-white/10"
+                  className="text-xs px-3 py-1.5 rounded-full font-medium transition-all hover:opacity-80"
                   style={{
                     fontFamily: "'Noto Sans JP', sans-serif",
-                    color: "#22d97a",
-                    background: "rgba(34,217,122,0.1)",
-                    border: "1px solid rgba(34,217,122,0.25)",
+                    color: "#a855f7",
+                    background: "rgba(192,132,245,0.12)",
+                    border: "1.5px solid rgba(192,132,245,0.3)",
                   }}
                 >
                   ✏️ 編集
                 </button>
               </div>
-              <ScheduleList
-                schedule={gameState.schedule}
-                currentTime={currentTime}
-                onToggle={toggleActivity}
-              />
+              <ScheduleList schedule={gameState.schedule} currentTime={currentTime} onToggle={toggleActivity} />
             </div>
           </div>
         )}
 
         {/* Schedule Editor Modal */}
         {showEditor && (
-          <ScheduleEditor
-            schedule={gameState.schedule}
-            onSave={saveSchedule}
-            onClose={() => setShowEditor(false)}
-          />
+          <ScheduleEditor schedule={gameState.schedule} onSave={saveSchedule} onClose={() => setShowEditor(false)} />
         )}
 
         {/* === SETTINGS TAB === */}
         {activeTab === "settings" && (
-          <div className="mt-3 flex flex-col gap-3">
-            {/* Difficulty */}
+          <div className="flex flex-col gap-3">
             <div
-              className="rounded-xl p-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
-              <div
-                className="text-sm font-bold mb-3"
-                style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.7)" }}
-              >
+              <div className="text-sm font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
                 ゲーム設定
               </div>
               <DifficultySlider value={difficulty} onChange={changeDifficulty} />
             </div>
 
-            {/* Score formula info */}
+            {/* Score formula */}
             <div
-              className="rounded-xl p-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
-              <div
-                className="text-sm font-bold mb-3"
-                style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.7)" }}
-              >
+              <div className="text-sm font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
                 スコア計算式
               </div>
               <div className="flex flex-col gap-2">
                 {[
-                  { label: "時間精度", weight: "40%", icon: "⏰" },
-                  { label: "空間精度", weight: "30%", icon: "📍" },
-                  { label: "活動達成度", weight: "20%", icon: "✅" },
-                  { label: "感情スコア", weight: "10%", icon: "💭" },
+                  { label: "時間精度", weight: "40%", icon: "⏰", color: "#c084f5" },
+                  { label: "空間精度", weight: "30%", icon: "📍", color: "#34d399" },
+                  { label: "活動達成度", weight: "20%", icon: "✅", color: "#f472b6" },
+                  { label: "感情スコア", weight: "10%", icon: "💕", color: "#f9a8d4" },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span>{item.icon}</span>
-                      <span
-                        className="text-sm"
-                        style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.6)" }}
-                      >
+                      <span className="text-sm" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.55)" }}>
                         {item.label}
                       </span>
                     </div>
-                    <span
-                      className="text-sm font-bold"
-                      style={{ fontFamily: "Orbitron, monospace", color: scoreColor }}
-                    >
+                    <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: item.color }}>
                       {item.weight}
                     </span>
                   </div>
@@ -560,46 +422,32 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Location panel */}
-            <LocationPanel
-              onDistanceUpdate={setSpaceDeviation}
-              currentDistance={gameState.spaceDeviation}
-            />
+            {/* Location */}
+            <LocationPanel onDistanceUpdate={setSpaceDeviation} currentDistance={gameState.spaceDeviation} />
 
-            {/* Coming soon features */}
+            {/* Roadmap */}
             <div
-              className="rounded-xl p-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
-              <div
-                className="text-sm font-bold mb-3"
-                style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.7)" }}
-              >
+              <div className="text-sm font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
                 今後の実装予定
               </div>
               <div className="flex flex-col gap-2">
                 {[
-                  { week: "Week2", label: "GPS位置情報連携", icon: "🗺️" },
-                  { week: "Week2", label: "プッシュ通知", icon: "🔔" },
-                  { week: "Week3", label: "招待コード2人対戦", icon: "⚔️" },
-                  { week: "Week4", label: "課金UI・AIコーチ", icon: "🤖" },
+                  { week: "Week2", label: "GPS位置情報連携", icon: "🗺️", color: "#34d399" },
+                  { week: "Week2", label: "プッシュ通知", icon: "🔔", color: "#c084f5" },
+                  { week: "Week3", label: "招待コード2人対戦", icon: "⚔️", color: "#f472b6" },
+                  { week: "Week4", label: "課金UI・AIコーチ", icon: "🤖", color: "#f59e0b" },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-2">
                     <span>{item.icon}</span>
-                    <span
-                      className="text-sm flex-1"
-                      style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(255,255,255,0.4)" }}
-                    >
+                    <span className="text-sm flex-1" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)" }}>
                       {item.label}
                     </span>
                     <span
-                      className="text-xs px-1.5 py-0.5 rounded"
-                      style={{
-                        fontFamily: "Orbitron, monospace",
-                        color: "rgba(255,255,255,0.25)",
-                        background: "rgba(255,255,255,0.06)",
-                        fontSize: "0.6rem",
-                      }}
+                      className="text-xs px-2 py-0.5 rounded-full"
+                      style={{ fontFamily: "'Noto Sans JP', sans-serif", color: item.color, background: `${item.color}15`, fontSize: "0.6rem" }}
                     >
                       {item.week}
                     </span>
@@ -615,9 +463,10 @@ export default function Home() {
       <nav
         className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] flex items-center justify-around px-4 py-3 z-20"
         style={{
-          background: "rgba(13,16,32,0.95)",
-          borderTop: "1px solid rgba(255,255,255,0.08)",
-          backdropFilter: "blur(12px)",
+          background: "rgba(255,255,255,0.92)",
+          borderTop: "1px solid rgba(244,114,182,0.15)",
+          backdropFilter: "blur(16px)",
+          boxShadow: "0 -4px 20px rgba(244,114,182,0.08)",
         }}
       >
         {(["dashboard", "schedule", "settings"] as const).map((tab) => {
@@ -628,19 +477,17 @@ export default function Home() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className="flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all duration-200"
-              style={{
-                background: isActive ? `${scoreColor}18` : "transparent",
-              }}
+              className="flex flex-col items-center gap-0.5 py-1 px-3 rounded-2xl transition-all duration-200"
+              style={{ background: isActive ? `${scoreScheme.main}15` : "transparent" }}
             >
               <span className="text-lg">{icons[tab]}</span>
               <span
                 className="text-xs"
                 style={{
                   fontFamily: "'Noto Sans JP', sans-serif",
-                  color: isActive ? scoreColor : "rgba(255,255,255,0.3)",
+                  color: isActive ? scoreScheme.main : "rgba(0,0,0,0.3)",
                   fontWeight: isActive ? 700 : 400,
-                  fontSize: "0.6rem",
+                  fontSize: "0.58rem",
                 }}
               >
                 {labels[tab]}
