@@ -3,6 +3,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================
+   DESIGN SYSTEM: Dark Gaming Gauge
+   - Deep blue-black background, neon green/red accents
+   - Orbitron for numbers, Noto Sans JP for Japanese labels
+   - Mobile-first: 390px base width, single column
+   ============================================================ */
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -40,77 +47,64 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Game-specific color tokens */
+  --color-score-green: var(--score-green);
+  --color-score-yellow: var(--score-yellow);
+  --color-score-red: var(--score-red);
+  --color-score-gold: var(--score-gold);
+  --color-card-surface: var(--card-surface);
+  --color-card-border: var(--card-border);
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.98 0.001 286.375);
-  --secondary-foreground: oklch(0.4 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
-}
+  --radius: 0.75rem;
 
-.dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.7 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
+  /* Dark gaming palette */
+  --background: oklch(0.12 0.025 265);
+  --foreground: oklch(0.92 0.01 265);
+  --card: oklch(0.17 0.025 265);
+  --card-foreground: oklch(0.92 0.01 265);
+  --popover: oklch(0.17 0.025 265);
+  --popover-foreground: oklch(0.92 0.01 265);
+  --primary: oklch(0.72 0.22 145);
+  --primary-foreground: oklch(0.10 0.01 265);
+  --secondary: oklch(0.22 0.025 265);
+  --secondary-foreground: oklch(0.75 0.01 265);
+  --muted: oklch(0.20 0.02 265);
+  --muted-foreground: oklch(0.55 0.02 265);
+  --accent: oklch(0.72 0.22 145);
+  --accent-foreground: oklch(0.10 0.01 265);
+  --destructive: oklch(0.65 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.72 0.22 145);
+
+  /* Chart colors */
+  --chart-1: oklch(0.72 0.22 145);
+  --chart-2: oklch(0.65 0.22 25);
+  --chart-3: oklch(0.80 0.18 85);
+  --chart-4: oklch(0.60 0.18 220);
+  --chart-5: oklch(0.55 0.02 265);
+
+  /* Sidebar */
+  --sidebar: oklch(0.15 0.025 265);
+  --sidebar-foreground: oklch(0.92 0.01 265);
+  --sidebar-primary: oklch(0.72 0.22 145);
+  --sidebar-primary-foreground: oklch(0.10 0.01 265);
+  --sidebar-accent: oklch(0.20 0.025 265);
+  --sidebar-accent-foreground: oklch(0.92 0.01 265);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  --sidebar-ring: oklch(0.72 0.22 145);
+
+  /* Game-specific tokens */
+  --score-green: oklch(0.72 0.22 145);
+  --score-yellow: oklch(0.80 0.18 85);
+  --score-red: oklch(0.65 0.22 25);
+  --score-gold: oklch(0.82 0.20 85);
+  --card-surface: oklch(0.17 0.025 265);
+  --card-border: oklch(1 0 0 / 10%);
 }
 
 @layer base {
@@ -119,6 +113,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Noto Sans JP', sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -134,25 +130,13 @@
 }
 
 @layer components {
-  /**
-   * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
-   */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
+    max-width: 430px;
   }
 
   .flex {
@@ -160,18 +144,72 @@
     min-width: 0;
   }
 
-  @media (min-width: 640px) {
-    .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
-      padding-right: 1.5rem;
-    }
+  /* Game card style */
+  .game-card {
+    background: var(--card-surface);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
   }
 
-  @media (min-width: 1024px) {
-    .container {
-      padding-left: 2rem; /* 32px - desktop padding */
-      padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
-    }
+  /* Neon glow effects */
+  .glow-green {
+    box-shadow: 0 0 12px oklch(0.72 0.22 145 / 40%),
+                0 0 24px oklch(0.72 0.22 145 / 20%);
+  }
+  .glow-red {
+    box-shadow: 0 0 12px oklch(0.65 0.22 25 / 40%),
+                0 0 24px oklch(0.65 0.22 25 / 20%);
+  }
+  .glow-gold {
+    box-shadow: 0 0 12px oklch(0.82 0.20 85 / 40%),
+                0 0 24px oklch(0.82 0.20 85 / 20%);
+  }
+
+  /* Orbitron number style */
+  .orbitron {
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  /* Score color classes */
+  .score-green { color: oklch(0.72 0.22 145); }
+  .score-yellow { color: oklch(0.80 0.18 85); }
+  .score-red { color: oklch(0.65 0.22 25); }
+  .score-gold { color: oklch(0.82 0.20 85); }
+
+  /* Pulse animation for warnings */
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .pulse-red {
+    animation: pulse-red 0.8s ease-in-out infinite;
+  }
+
+  @keyframes count-up {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .count-up {
+    animation: count-up 0.3s ease-out;
+  }
+
+  /* Background grid pattern */
+  .bg-grid {
+    background-image:
+      linear-gradient(oklch(1 0 0 / 3%) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(1 0 0 / 3%) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Score background glow overlay */
+  .score-bg-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    transition: background 1s ease;
   }
 }
