@@ -36,6 +36,7 @@ function loadProfile(): UserProfile | null {
 }
 
 type FootTab = "today" | "week" | "ideal" | "help";
+type GraphTab = "today" | "week";
 
 export default function Home() {
   const {
@@ -51,6 +52,7 @@ export default function Home() {
   const [profile, setProfile] = useState<UserProfile | null>(() => loadProfile());
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState<FootTab>("today");
+  const [graphTab, setGraphTab] = useState<GraphTab>("today");
   const prevScoreRef = useRef(gameState.score.total);
   const [scoreFlash, setScoreFlash] = useState(false);
 
@@ -244,105 +246,118 @@ export default function Home() {
         )}
 
         {/* =============================================
-            今日のポイント タブ
+            グラフカード（今日/今週 タブ切り替え）
+            今日タブ・今週タブ どちらでも表示
         ============================================= */}
-        {activeTab === "today" && (
+        {(activeTab === "today" || activeTab === "week") && (
           <div className="flex flex-col gap-3">
             {/* グラフカード */}
             <div
               className="rounded-2xl p-4"
               style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
             >
-              <div className="text-xs font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.5)" }}>
-                📊 今日のポイント
+              {/* ── 今日/今週 切り替えタブ ── */}
+              <div
+                className="flex rounded-xl overflow-hidden mb-3 p-0.5"
+                style={{ background: "rgba(0,0,0,0.04)", width: "fit-content" }}
+              >
+                {(["today", "week"] as const).map((t) => {
+                  const isG = graphTab === t;
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => setGraphTab(t)}
+                      className="px-3 py-1 text-xs font-medium rounded-lg transition-all duration-200"
+                      style={{
+                        fontFamily: "'Noto Sans JP', sans-serif",
+                        color: isG ? "rgba(0,0,0,0.65)" : "rgba(0,0,0,0.3)",
+                        background: isG ? "rgba(255,255,255,0.95)" : "transparent",
+                        fontWeight: isG ? 700 : 400,
+                        boxShadow: isG ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                      }}
+                    >
+                      {t === "today" ? "📊 今日のポイント" : "📈 今週のポイント"}
+                    </button>
+                  );
+                })}
               </div>
+
               <div className="flex items-start gap-3">
-                {/* 左：今日の比較ドーナツ */}
+                {/* 左：比較ドーナツ（今日 or 今週） */}
                 <div className="shrink-0">
-                  <TimeDonut schedule={gameState.schedule} currentTime={currentTime} size={130} />
+                  {graphTab === "today"
+                    ? <TimeDonut schedule={gameState.schedule} currentTime={currentTime} size={130} />
+                    : <WeeklyDonut schedule={gameState.schedule} size={130} />
+                  }
                 </div>
-                {/* 右：今日のカテゴリ達成状況 */}
+                {/* 右：帯グラフ（今日 or 今週） */}
                 <div className="flex-1 min-w-0">
-                  <TodayCategoryBars schedule={gameState.schedule} />
+                  {graphTab === "today"
+                    ? <TodayCategoryBars schedule={gameState.schedule} />
+                    : <DailyProgressBar schedule={gameState.schedule} />
+                  }
                 </div>
               </div>
             </div>
 
-            {/* 今日のスケジュール */}
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-                  🌸 今日のスケジュール
+            {/* 今日のスケジュール（今日タブのみ） */}
+            {activeTab === "today" && (
+              <div
+                className="rounded-2xl p-4"
+                style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
+                    🌸 今日のスケジュール
+                  </span>
+                </div>
+                <ScheduleList schedule={gameState.schedule} currentTime={currentTime} onToggle={toggleActivity} />
+              </div>
+            )}
+
+            {/* 感情セレクター（今日タブのみ） */}
+            {activeTab === "today" && (
+              <div
+                className="rounded-2xl p-4"
+                style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
+              >
+                <EmotionSelector value={gameState.emotionLevel} onChange={changeEmotion} />
+              </div>
+            )}
+
+            {/* 位置情報（今日タブのみ） */}
+            {activeTab === "today" && (
+              <LocationPanel onDistanceUpdate={setSpaceDeviation} currentDistance={gameState.spaceDeviation} />
+            )}
+
+            {/* チートパネル（今週タブのみ） */}
+            {activeTab === "week" && (
+              <CheatPanel cheatPoints={gameState.cheatPoints} streak={gameState.streak} onUseCheat={useCheat} />
+            )}
+
+            {/* 2人対戦Coming Soon（今週タブのみ） */}
+            {activeTab === "week" && (
+              <button
+                className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition-all hover:opacity-80"
+                style={{ background: "rgba(255,255,255,0.6)", border: "1.5px dashed rgba(192,132,245,0.25)", opacity: 0.7 }}
+                onClick={() => toast.info("2人対戦は Week3 実装予定です 🎮", {
+                  style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" },
+                })}
+              >
+                <span className="text-xl">⚔️</span>
+                <div className="flex-1">
+                  <div className="text-sm font-bold" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.45)" }}>
+                    2人対戦モード
+                  </div>
+                  <div className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.25)" }}>
+                    招待コードで友達と対戦（Coming Soon）
+                  </div>
+                </div>
+                <span className="text-xs px-2 py-1 rounded-full" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(192,132,245,0.6)", background: "rgba(192,132,245,0.08)" }}>
+                  SOON
                 </span>
-              </div>
-              <ScheduleList schedule={gameState.schedule} currentTime={currentTime} onToggle={toggleActivity} />
-            </div>
-
-            {/* 感情セレクター */}
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-            >
-              <EmotionSelector value={gameState.emotionLevel} onChange={changeEmotion} />
-            </div>
-
-            {/* 位置情報 */}
-            <LocationPanel onDistanceUpdate={setSpaceDeviation} currentDistance={gameState.spaceDeviation} />
-          </div>
-        )}
-
-        {/* =============================================
-            今週のポイント タブ
-        ============================================= */}
-        {activeTab === "week" && (
-          <div className="flex flex-col gap-3">
-            {/* 週間グラフカード */}
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-            >
-              <div className="text-xs font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.5)" }}>
-                📈 今週のポイント（7日間累積）
-              </div>
-              <div className="flex items-start gap-3">
-                {/* 左：週間比較ドーナツ */}
-                <div className="shrink-0">
-                  <WeeklyDonut schedule={gameState.schedule} size={130} />
-                </div>
-                {/* 右：7日間積算帯グラフ */}
-                <div className="flex-1 min-w-0">
-                  <DailyProgressBar schedule={gameState.schedule} />
-                </div>
-              </div>
-            </div>
-
-            {/* チートパネル */}
-            <CheatPanel cheatPoints={gameState.cheatPoints} streak={gameState.streak} onUseCheat={useCheat} />
-
-            {/* 2人対戦Coming Soon */}
-            <button
-              className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition-all hover:opacity-80"
-              style={{ background: "rgba(255,255,255,0.6)", border: "1.5px dashed rgba(192,132,245,0.25)", opacity: 0.7 }}
-              onClick={() => toast.info("2人対戦は Week3 実装予定です 🎮", {
-                style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" },
-              })}
-            >
-              <span className="text-xl">⚔️</span>
-              <div className="flex-1">
-                <div className="text-sm font-bold" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.45)" }}>
-                  2人対戦モード
-                </div>
-                <div className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.25)" }}>
-                  招待コードで友達と対戦（Coming Soon）
-                </div>
-              </div>
-              <span className="text-xs px-2 py-1 rounded-full" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(192,132,245,0.6)", background: "rgba(192,132,245,0.08)" }}>
-                SOON
-              </span>
-            </button>
+              </button>
+            )}
           </div>
         )}
 
