@@ -12,7 +12,6 @@ interface GaugeMeterProps {
   label?: string;
   size?: number;
   animated?: boolean;
-  flowerDecoUrl?: string;
 }
 
 function scoreToColor(score: number): { main: string; light: string; hex: string } {
@@ -30,21 +29,12 @@ export default function GaugeMeter({
   label = "生活効率スコア",
   size = 300,
   animated = true,
-  flowerDecoUrl,
 }: GaugeMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const currentAngleRef = useRef<number>(Math.PI);
   const targetAngleRef = useRef<number>(scoreToAngle(score));
-  const flowerImgRef = useRef<HTMLImageElement | null>(null);
 
-  // Preload flower decoration
-  useEffect(() => {
-    if (!flowerDecoUrl) return;
-    const img = new Image();
-    img.src = flowerDecoUrl;
-    img.onload = () => { flowerImgRef.current = img; };
-  }, [flowerDecoUrl]);
 
   const draw = useCallback((angle: number, currentScore: number) => {
     const canvas = canvasRef.current;
@@ -196,15 +186,6 @@ export default function GaugeMeter({
     ctx.font = `500 ${w * 0.036}px 'Noto Sans JP', sans-serif`;
     ctx.fillStyle = colors.hex + "cc";
     ctx.fillText(`Lv.${scoreInt}`, cx, cy + outerR * 0.30);
-
-    // === Flower decoration overlay ===
-    if (flowerImgRef.current) {
-      const img = flowerImgRef.current;
-      const imgSize = outerR * 2.6;
-      ctx.globalAlpha = 0.55;
-      ctx.drawImage(img, cx - imgSize / 2, cy - imgSize * 0.62, imgSize, imgSize);
-      ctx.globalAlpha = 1;
-    }
 
     ctx.restore();
   }, [label]);

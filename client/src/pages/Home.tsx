@@ -1,10 +1,9 @@
 /**
  * Home.tsx - Main game screen
  * Design: Pastel Kawaii Life Manager
- * - Soft blush pink / lavender / mint cream palette
- * - Shippori Mincho for headings, Noto Sans JP for body
- * - Watercolor hero background with floral gauge decoration
- * - Mobile-first 390px single column layout
+ * - 初回起動時はProfileSetup画面を表示
+ * - フットタブ「設定」→「理想スケジュール」に変更
+ * - GaugeMeterの花柄装飾なし
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -17,11 +16,22 @@ import CheatPanel from "@/components/CheatPanel";
 import EmotionSelector from "@/components/EmotionSelector";
 import LocationPanel from "@/components/LocationPanel";
 import { useScoreEngine } from "@/hooks/useScoreEngine";
-import ScheduleEditor from "@/components/ScheduleEditor";
+import ProfileSetup, { type UserProfile, DEFAULT_PROFILE } from "@/components/ProfileSetup";
+import IdealScheduleTab from "@/components/IdealScheduleTab";
 import { toast } from "sonner";
 
 const HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663145989169/V3mzZwvpdi82dLMoVHx8Pr/hero-bg-JeDdhMmnmpUPNBZ3PigiRd.webp";
-const FLOWER_DECO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663145989169/V3mzZwvpdi82dLMoVHx8Pr/gauge-deco-EE7ciXtuBtnWH5NUxLfPi4.png";
+
+function loadProfile(): UserProfile | null {
+  try {
+    const raw = localStorage.getItem("lifemanager_profile");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as UserProfile;
+    return parsed.setupDone ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function Home() {
   const {
@@ -36,9 +46,9 @@ export default function Home() {
     setSpaceDeviation,
   } = useScoreEngine();
 
-  const [showEditor, setShowEditor] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(() => loadProfile());
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<"dashboard" | "schedule" | "settings">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "schedule" | "ideal">("dashboard");
   const prevScoreRef = useRef(gameState.score.total);
   const [scoreFlash, setScoreFlash] = useState(false);
 
@@ -56,9 +66,13 @@ export default function Home() {
     }
   }, [gameState.score.total]);
 
+  // 初回起動時はプロフィール入力画面を表示
+  if (!profile) {
+    return <ProfileSetup onComplete={(p) => setProfile(p)} />;
+  }
+
   const score = gameState.score.total;
 
-  // Score-based color scheme
   const scoreScheme = score >= 70
     ? { main: "#34d399", light: "#d1fae5", badge: "rgba(52,211,153,0.15)", border: "rgba(52,211,153,0.3)", label: "絶好調！🌿" }
     : score >= 40
@@ -77,15 +91,15 @@ export default function Home() {
       className="min-h-screen flex flex-col relative overflow-hidden"
       style={{ background: "#fdf6ff", maxWidth: "430px", margin: "0 auto", fontFamily: "'Noto Sans JP', sans-serif" }}
     >
-      {/* Hero background (top section only) */}
+      {/* Hero background */}
       <div
         className="absolute top-0 left-0 right-0 pointer-events-none"
         style={{
-          height: "340px",
+          height: "320px",
           backgroundImage: `url(${HERO_BG})`,
           backgroundSize: "cover",
           backgroundPosition: "top center",
-          opacity: 0.35,
+          opacity: 0.3,
           maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)",
           WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)",
         }}
@@ -100,9 +114,7 @@ export default function Home() {
       )}
 
       {/* Header */}
-      <header
-        className="relative z-10 flex items-center justify-between px-4 pt-5 pb-3"
-      >
+      <header className="relative z-10 flex items-center justify-between px-4 pt-5 pb-3">
         <div className="flex items-center gap-2">
           <div
             className="w-8 h-8 rounded-2xl flex items-center justify-center text-base"
@@ -112,10 +124,10 @@ export default function Home() {
           </div>
           <div>
             <div className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.65)", lineHeight: 1.2 }}>
-              Life Manager
+              {profile.nickname}さんのLife
             </div>
             <div className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontSize: "0.6rem" }}>
-              ソロモード
+              {profile.mode === "solo" ? "ソロモード🌸" : profile.mode === "battle" ? "バトルモード⚔️" : "リラックス🌿"}
             </div>
           </div>
         </div>
@@ -151,7 +163,6 @@ export default function Home() {
             backdropFilter: "blur(12px)",
           }}
         >
-          {/* Score label row */}
           <div className="flex items-center justify-between px-4 pt-4">
             <span
               className="text-xs font-bold px-3 py-1 rounded-full"
@@ -168,17 +179,10 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Needle meter */}
           <div className="px-2 pt-1 pb-2">
-            <GaugeMeter
-              score={score}
-              size={340}
-              animated
-              flowerDecoUrl={FLOWER_DECO}
-            />
+            <GaugeMeter score={score} size={340} animated />
           </div>
 
-          {/* Status row */}
           <div
             className="flex items-center justify-around px-4 py-3"
             style={{ borderTop: `1px solid ${scoreScheme.border}30` }}
@@ -236,8 +240,8 @@ export default function Home() {
           className="mb-3 flex rounded-2xl overflow-hidden p-1"
           style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(0,0,0,0.06)" }}
         >
-          {(["dashboard", "schedule", "settings"] as const).map((tab) => {
-            const labels = { dashboard: "📊 ダッシュ", schedule: "📋 スケジュール", settings: "⚙️ 設定" };
+          {(["dashboard", "schedule", "ideal"] as const).map((tab) => {
+            const labels = { dashboard: "📊 ダッシュ", schedule: "📋 今日", ideal: "🌸 理想設定" };
             const isActive = activeTab === tab;
             return (
               <button
@@ -261,7 +265,6 @@ export default function Home() {
         {/* === DASHBOARD TAB === */}
         {activeTab === "dashboard" && (
           <div className="flex flex-col gap-3">
-            {/* 24h donut + breakdown */}
             <div
               className="rounded-2xl p-4"
               style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
@@ -295,7 +298,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Difficulty */}
             <div
               className="rounded-2xl p-4"
               style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
@@ -303,7 +305,6 @@ export default function Home() {
               <DifficultySlider value={difficulty} onChange={changeDifficulty} />
             </div>
 
-            {/* Emotion */}
             <div
               className="rounded-2xl p-4"
               style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
@@ -311,17 +312,11 @@ export default function Home() {
               <EmotionSelector value={gameState.emotionLevel} onChange={changeEmotion} />
             </div>
 
-            {/* Cheat panel */}
             <CheatPanel cheatPoints={gameState.cheatPoints} streak={gameState.streak} onUseCheat={useCheat} />
 
-            {/* Battle placeholder */}
             <button
               className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition-all hover:opacity-80"
-              style={{
-                background: "rgba(255,255,255,0.6)",
-                border: "1.5px dashed rgba(192,132,245,0.25)",
-                opacity: 0.7,
-              }}
+              style={{ background: "rgba(255,255,255,0.6)", border: "1.5px dashed rgba(192,132,245,0.25)", opacity: 0.7 }}
               onClick={() => toast.info("2人対戦は Week3 実装予定です 🎮", {
                 style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" },
               })}
@@ -335,17 +330,14 @@ export default function Home() {
                   招待コードで友達と対戦（Coming Soon）
                 </div>
               </div>
-              <span
-                className="text-xs px-2 py-1 rounded-full"
-                style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(192,132,245,0.6)", background: "rgba(192,132,245,0.08)" }}
-              >
+              <span className="text-xs px-2 py-1 rounded-full" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(192,132,245,0.6)", background: "rgba(192,132,245,0.08)" }}>
                 SOON
               </span>
             </button>
           </div>
         )}
 
-        {/* === SCHEDULE TAB === */}
+        {/* === TODAY SCHEDULE TAB === */}
         {activeTab === "schedule" && (
           <div className="flex flex-col gap-3">
             <div
@@ -356,106 +348,21 @@ export default function Home() {
                 <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
                   🌸 今日のスケジュール
                 </span>
-                <button
-                  onClick={() => setShowEditor(true)}
-                  className="text-xs px-3 py-1.5 rounded-full font-medium transition-all hover:opacity-80"
-                  style={{
-                    fontFamily: "'Noto Sans JP', sans-serif",
-                    color: "#a855f7",
-                    background: "rgba(192,132,245,0.12)",
-                    border: "1.5px solid rgba(192,132,245,0.3)",
-                  }}
-                >
-                  ✏️ 編集
-                </button>
               </div>
               <ScheduleList schedule={gameState.schedule} currentTime={currentTime} onToggle={toggleActivity} />
             </div>
-          </div>
-        )}
-
-        {/* Schedule Editor Modal */}
-        {showEditor && (
-          <ScheduleEditor schedule={gameState.schedule} onSave={saveSchedule} onClose={() => setShowEditor(false)} />
-        )}
-
-        {/* === SETTINGS TAB === */}
-        {activeTab === "settings" && (
-          <div className="flex flex-col gap-3">
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-            >
-              <div className="text-sm font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-                ゲーム設定
-              </div>
-              <DifficultySlider value={difficulty} onChange={changeDifficulty} />
-            </div>
-
-            {/* Score formula */}
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-            >
-              <div className="text-sm font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-                スコア計算式
-              </div>
-              <div className="flex flex-col gap-2">
-                {[
-                  { label: "時間精度", weight: "40%", icon: "⏰", color: "#c084f5" },
-                  { label: "空間精度", weight: "30%", icon: "📍", color: "#34d399" },
-                  { label: "活動達成度", weight: "20%", icon: "✅", color: "#f472b6" },
-                  { label: "感情スコア", weight: "10%", icon: "💕", color: "#f9a8d4" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span>{item.icon}</span>
-                      <span className="text-sm" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.55)" }}>
-                        {item.label}
-                      </span>
-                    </div>
-                    <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: item.color }}>
-                      {item.weight}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Location */}
             <LocationPanel onDistanceUpdate={setSpaceDeviation} currentDistance={gameState.spaceDeviation} />
-
-            {/* Roadmap */}
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-            >
-              <div className="text-sm font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-                今後の実装予定
-              </div>
-              <div className="flex flex-col gap-2">
-                {[
-                  { week: "Week2", label: "GPS位置情報連携", icon: "🗺️", color: "#34d399" },
-                  { week: "Week2", label: "プッシュ通知", icon: "🔔", color: "#c084f5" },
-                  { week: "Week3", label: "招待コード2人対戦", icon: "⚔️", color: "#f472b6" },
-                  { week: "Week4", label: "課金UI・AIコーチ", icon: "🤖", color: "#f59e0b" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    <span>{item.icon}</span>
-                    <span className="text-sm flex-1" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)" }}>
-                      {item.label}
-                    </span>
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full"
-                      style={{ fontFamily: "'Noto Sans JP', sans-serif", color: item.color, background: `${item.color}15`, fontSize: "0.6rem" }}
-                    >
-                      {item.week}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
+        )}
+
+        {/* === IDEAL SCHEDULE TAB === */}
+        {activeTab === "ideal" && (
+          <IdealScheduleTab
+            profile={profile}
+            schedule={gameState.schedule}
+            onSaveSchedule={saveSchedule}
+            onUpdateProfile={(updated) => setProfile(updated)}
+          />
         )}
       </main>
 
@@ -469,9 +376,9 @@ export default function Home() {
           boxShadow: "0 -4px 20px rgba(244,114,182,0.08)",
         }}
       >
-        {(["dashboard", "schedule", "settings"] as const).map((tab) => {
-          const icons = { dashboard: "📊", schedule: "📋", settings: "⚙️" };
-          const labels = { dashboard: "ダッシュ", schedule: "スケジュール", settings: "設定" };
+        {(["dashboard", "schedule", "ideal"] as const).map((tab) => {
+          const icons = { dashboard: "📊", schedule: "📋", ideal: "🌸" };
+          const labels = { dashboard: "ダッシュ", schedule: "今日", ideal: "理想設定" };
           const isActive = activeTab === tab;
           return (
             <button
