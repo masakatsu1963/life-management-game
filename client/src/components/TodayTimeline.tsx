@@ -18,9 +18,6 @@ interface Props {
   currentTime: Date;
   onToggle: (eventId: string, pointType: PointType) => void;
   onContentChange: (eventId: string, contentId: string) => void;
-  earnedPoints: number;
-  totalPoints: number;
-  bonusTotal?: number;
   taskMode?: TaskMode;
 }
 
@@ -43,9 +40,6 @@ export default function TodayTimeline({
   currentTime,
   onToggle,
   onContentChange,
-  earnedPoints,
-  totalPoints,
-  bonusTotal = 0,
   taskMode = "hard",
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -90,52 +84,6 @@ export default function TodayTimeline({
 
   return (
     <div style={{ paddingBottom: 8 }}>
-      {/* ポイントサマリーバー */}
-      <div style={{
-        background: "linear-gradient(135deg, rgba(244,114,182,0.08) 0%, rgba(192,132,245,0.08) 100%)",
-        borderRadius: 14,
-        padding: "10px 16px",
-        marginBottom: 12,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        border: "1px solid rgba(192,132,245,0.15)",
-      }}>
-        <div>
-          <div style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600, letterSpacing: "0.05em" }}>
-            今日の獲得ポイント
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#7c3aed", lineHeight: 1.2 }}>
-            {earnedPoints}
-            <span style={{ fontSize: 13, color: "#a78bfa", fontWeight: 400 }}>/{totalPoints}pt</span>
-          </div>
-          {bonusTotal > 0 && (
-            <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, marginTop: 2 }}>
-              ⭐ 時間ボーナス +{bonusTotal}pt
-            </div>
-          )}
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>達成率</div>
-          <div style={{
-            width: 80, height: 8,
-            background: "rgba(0,0,0,0.08)",
-            borderRadius: 99, overflow: "hidden",
-          }}>
-            <div style={{
-              width: `${totalPoints > 0 ? Math.min(100, (earnedPoints / totalPoints) * 100) : 0}%`,
-              height: "100%",
-              background: "linear-gradient(90deg, #f9a8d4, #c084f5)",
-              borderRadius: 99,
-              transition: "width 0.5s ease",
-            }} />
-          </div>
-          <div style={{ fontSize: 12, color: "#7c3aed", fontWeight: 600, marginTop: 2 }}>
-            {totalPoints > 0 ? Math.round(Math.min(100, (earnedPoints / totalPoints) * 100)) : 0}%
-          </div>
-        </div>
-      </div>
-
       {/* タイムライン */}
       <div style={{ position: "relative" }}>
         {/* 縦線 */}

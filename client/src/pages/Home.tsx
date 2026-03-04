@@ -268,7 +268,7 @@ export default function Home() {
           </div>
 
           <div className="px-2 pt-1 pb-2">
-            <GaugeMeter score={score} size={340} animated />
+            <GaugeMeter score={score} size={340} animated earnedPoints={earnedPoints} totalPoints={totalPoints} />
           </div>
 
           {/* ポイント内訳バー */}
@@ -369,9 +369,6 @@ export default function Home() {
                   currentTime={currentTime}
                   onToggle={toggleEventPoint}
                   onContentChange={updateEventContent}
-                  earnedPoints={earnedPoints}
-                  totalPoints={totalPoints}
-                  bonusTotal={bonusTotal}
                   taskMode={taskMode}
                 />
               </div>

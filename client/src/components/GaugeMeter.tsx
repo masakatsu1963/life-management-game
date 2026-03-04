@@ -12,6 +12,8 @@ interface GaugeMeterProps {
   label?: string;
   size?: number;
   animated?: boolean;
+  earnedPoints?: number;  // 獲得ポイント（メーター内に表示）
+  totalPoints?: number;   // 満点ポイント
 }
 
 function scoreToColor(score: number): { main: string; light: string; hex: string } {
@@ -31,6 +33,8 @@ export default function GaugeMeter({
   label = "生活効率スコア",
   size = 300,
   animated = true,
+  earnedPoints,
+  totalPoints,
 }: GaugeMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
@@ -38,7 +42,7 @@ export default function GaugeMeter({
   const targetAngleRef = useRef<number>(scoreToAngle(score));
 
 
-  const draw = useCallback((angle: number, currentScore: number) => {
+  const draw = useCallback((angle: number, currentScore: number, dispEarned?: number, dispTotal?: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -169,29 +173,41 @@ export default function GaugeMeter({
     ctx.fillStyle = colors.hex;
     ctx.fill();
 
-    // === Score number ===
-    const scoreInt = Math.round(currentScore);
+    // === Score number (獲得ポイント表示) ===
+    const showEarned = dispEarned !== undefined;
+    const mainNum = showEarned ? Math.round(dispEarned!) : Math.round(currentScore);
+    const subText = showEarned && dispTotal !== undefined ? `/${dispTotal}pt` : "";
+
+    // メインの数字（大きく）
     ctx.font = `700 ${w * 0.17}px 'Shippori Mincho', serif`;
     ctx.fillStyle = colors.hex;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = colors.hex + "40";
     ctx.shadowBlur = 12;
-    ctx.fillText(String(scoreInt), cx, cy - outerR * 0.12);
+    ctx.fillText(String(mainNum), cx, cy - outerR * 0.12);
     ctx.shadowBlur = 0;
 
-    // Label
-    ctx.font = `400 ${w * 0.042}px 'Noto Sans JP', sans-serif`;
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.fillText(label, cx, cy + outerR * 0.14);
+    // サブテキスト（/100pt など）
+    if (subText) {
+      ctx.font = `400 ${w * 0.042}px 'Noto Sans JP', sans-serif`;
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillText(subText, cx, cy + outerR * 0.14);
+    } else {
+      // Label
+      ctx.font = `400 ${w * 0.042}px 'Noto Sans JP', sans-serif`;
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillText(label, cx, cy + outerR * 0.14);
+    }
 
-    // Level
+    // 達成率 % (小さく)
+    const pct = showEarned && dispTotal ? Math.min(100, Math.round((dispEarned! / dispTotal) * 100)) : Math.round(currentScore);
     ctx.font = `500 ${w * 0.036}px 'Noto Sans JP', sans-serif`;
     ctx.fillStyle = colors.hex + "cc";
-    ctx.fillText(`Lv.${scoreInt}`, cx, cy + outerR * 0.30);
+    ctx.fillText(`${pct}%`, cx, cy + outerR * 0.30);
 
     ctx.restore();
-  }, [label]);
+  }, [label, earnedPoints, totalPoints]);
 
   useEffect(() => {
     targetAngleRef.current = scoreToAngle(score);
@@ -206,12 +222,16 @@ export default function GaugeMeter({
       const diff = target - current;
       if (Math.abs(diff) < 0.001) {
         currentAngleRef.current = target;
-        draw(target, score);
+        draw(target, score, earnedPoints, totalPoints);
         return;
       }
       currentAngleRef.current = current + diff * 0.07;
       const displayScore = ((currentAngleRef.current - Math.PI) / Math.PI) * 100;
-      draw(currentAngleRef.current, Math.max(0, Math.min(100, displayScore)));
+      // アニメーション中の獲得ポイントも補間
+      const dispEarned = earnedPoints !== undefined && totalPoints !== undefined
+        ? (displayScore / 100) * earnedPoints
+        : undefined;
+      draw(currentAngleRef.current, Math.max(0, Math.min(100, displayScore)), dispEarned, totalPoints);
       animRef.current = requestAnimationFrame(animate);
     };
     cancelAnimationFrame(animRef.current);
@@ -227,8 +247,8 @@ export default function GaugeMeter({
     canvas.height = (size * 0.62) * dpr;
     canvas.style.width = `${size}px`;
     canvas.style.height = `${size * 0.62}px`;
-    draw(currentAngleRef.current, score);
-  }, [size, draw, score]);
+    draw(currentAngleRef.current, score, earnedPoints, totalPoints);
+  }, [size, draw, score, earnedPoints, totalPoints]);
 
   return (
     <canvas
