@@ -1,200 +1,318 @@
 /**
  * useScoreEngine.ts
- * Design: Dark Gaming Gauge - Score calculation engine
- * Calculates life efficiency score (0-100) based on:
- *   - Time deviation (40%): how close to ideal schedule
- *   - Space deviation (30%): distance from ideal location
- *   - Activity achievement (20%): completed activities
- *   - Emotion score (10%): user-reported mood
+ * ポイント表準拠スコアエンジン v2
+ *
+ * ポイント構造（最大13pt/日）:
+ * 起床アラーム消す          → 時間+1pt
+ * 朝の瞑想/NotebookLM      → タスク+1pt
+ * 家を出る                  → 位置+1pt
+ * 最寄駅到着                → 位置+1pt
+ * 通勤中NotebookLM         → タスク+1pt / 位置+1pt
+ * 勤務先最寄駅到着          → 位置+1pt
+ * 勤務先到着                → 時間+1pt / 位置+1pt
+ * 昼休みタスク/勉強         → タスク+1pt
+ * 退勤                      → 時間+1pt
+ * 帰宅通勤NotebookLM       → タスク+1pt / 位置+1pt
+ * 就寝前デトックス          → タスク+1pt
+ * 合計最大: 13pt → score = (earned/13)*100
+ *
+ * 休日/出張/病欠モード: 前日スコアを引き継ぎ（ノーカウント）
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 
+// ===================== 型定義 =====================
+
+export type PointType = "time" | "location" | "task";
+export type DayMode = "normal" | "holiday" | "business_trip" | "sick";
+
+export interface DailyEvent {
+  id: string;
+  label: string;
+  emoji: string;
+  scheduledTime: string;       // "HH:MM"
+  timePoint: number;           // 時間ポイント (0 or 1)
+  locationPoint: number;       // 位置ポイント (0 or 1)
+  taskPoint: number;           // タスクポイント (0 or 1)
+  requiresLocation: boolean;
+  requiresTask: boolean;
+  locationLabel?: string;
+  taskLabel?: string;
+  // 達成状態
+  timeAchieved: boolean;
+  locationAchieved: boolean;
+  taskAchieved: boolean;
+  achievedAt?: string;
+}
+
+export interface UserProfile {
+  name: string;
+  wakeTime: string;
+  alarmEnabled: boolean;
+  homeStation: string;
+  workStation: string;
+  workAddress: string;
+  bedTime: string;
+  offDays: number[];           // 0=日,1=月,...,6=土
+  learningContent: string;
+  mode: DayMode;
+}
+
+export interface WeeklyLog {
+  date: string;                // "YYYY-MM-DD"
+  score: number;
+  earnedPoints: number;
+  eventAchievements: Record<string, { time: boolean; location: boolean; task: boolean }>;
+}
+
+// 旧型との互換性のために残す（ScheduleList等で使用）
 export type Difficulty = "easy" | "normal" | "hard";
-
 export type ScheduleCategory =
-  | "wakeup"       // 起床
-  | "pre_work"     // 出勤前のタスク
-  | "commute_learn" // 通勤時間の学習
-  | "break"        // 休憩時間利用
-  | "return_learn" // 帰宅時間の学習
-  | "pre_sleep"    // 就寝前のタスク
-  | "other";       // その他
+  | "wakeup" | "pre_work" | "commute_learn"
+  | "break" | "return_learn" | "pre_sleep" | "other";
 
 export interface ScheduleItem {
   id: string;
-  time: string; // "HH:MM"
+  time: string;
   location: string;
   activity: string;
   completed: boolean;
   category?: ScheduleCategory;
 }
 
-export interface ScoreBreakdown {
-  timeScore: number;      // 0-100
-  spaceScore: number;     // 0-100
-  activityScore: number;  // 0-100
-  emotionScore: number;   // 0-100
-  total: number;          // 0-100 weighted
-}
+// ===================== デフォルト値 =====================
 
-export interface GameState {
-  score: ScoreBreakdown;
-  difficulty: Difficulty;
-  cheatPoints: number;
-  streak: number; // consecutive days above 80
-  currentTime: Date;
-  timeDeviation: number; // minutes off schedule
-  spaceDeviation: number; // km from ideal location
-  schedule: ScheduleItem[];
-  nextEvent: ScheduleItem | null;
-  minutesUntilNext: number;
-  emotionLevel: number; // 1-5
-  isWarning: boolean;
-  lastUpdated: Date;
-}
-
-const DIFFICULTY_MULTIPLIERS: Record<Difficulty, number> = {
-  easy: 0.7,
-  normal: 1.0,
-  hard: 1.4,
+const DEFAULT_PROFILE: UserProfile = {
+  name: "",
+  wakeTime: "06:30",
+  alarmEnabled: true,
+  homeStation: "",
+  workStation: "",
+  workAddress: "",
+  bedTime: "22:30",
+  offDays: [0, 6],
+  learningContent: "英語学習",
+  mode: "normal",
 };
 
-const DEFAULT_SCHEDULE: ScheduleItem[] = [
-  { id: "1", time: "06:30", location: "自宅", activity: "起床・瞑想", completed: false, category: "wakeup" },
-  { id: "2", time: "07:00", location: "自宅", activity: "出勤前ストレッチ", completed: false, category: "pre_work" },
-  { id: "3", time: "07:30", location: "自宅", activity: "朝の準備・身支度", completed: false, category: "pre_work" },
-  { id: "4", time: "08:00", location: "通勤", activity: "通勤中の学習30分", completed: false, category: "commute_learn" },
-  { id: "5", time: "12:00", location: "職場", activity: "昼休み活用", completed: false, category: "break" },
-  { id: "6", time: "18:00", location: "通勤", activity: "帰宅中の学習", completed: false, category: "return_learn" },
-  { id: "7", time: "22:00", location: "自宅", activity: "就寝デトックス", completed: false, category: "pre_sleep" },
-];
-
-function timeToMinutes(timeStr: string): number {
-  const [h, m] = timeStr.split(":").map(Number);
-  return h * 60 + m;
+function addMinutes(time: string, mins: number): string {
+  const [h, m] = time.split(":").map(Number);
+  const total = h * 60 + m + mins;
+  const nh = Math.floor(total / 60) % 24;
+  const nm = total % 60;
+  return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
 }
 
-function getCurrentMinutes(date: Date): number {
-  return date.getHours() * 60 + date.getMinutes();
+export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
+  return [
+    {
+      id: "wake",
+      label: "起床",
+      emoji: "🌅",
+      scheduledTime: profile.wakeTime,
+      timePoint: 1,
+      locationPoint: 0,
+      taskPoint: 0,
+      requiresLocation: false,
+      requiresTask: false,
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "morning_task",
+      label: "朝の瞑想・タスク",
+      emoji: "🧘",
+      scheduledTime: addMinutes(profile.wakeTime, 15),
+      timePoint: 0,
+      locationPoint: 0,
+      taskPoint: 1,
+      requiresLocation: false,
+      requiresTask: true,
+      taskLabel: "NotebookLM / 瞑想",
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "leave_home",
+      label: "家を出る",
+      emoji: "🚪",
+      scheduledTime: addMinutes(profile.wakeTime, 60),
+      timePoint: 0,
+      locationPoint: 1,
+      taskPoint: 0,
+      requiresLocation: true,
+      requiresTask: false,
+      locationLabel: "自宅周辺",
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "home_station",
+      label: "最寄駅到着",
+      emoji: "🚉",
+      scheduledTime: addMinutes(profile.wakeTime, 75),
+      timePoint: 0,
+      locationPoint: 1,
+      taskPoint: 0,
+      requiresLocation: true,
+      requiresTask: false,
+      locationLabel: profile.homeStation || "最寄駅",
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "commute_task",
+      label: "通勤中学習",
+      emoji: "📚",
+      scheduledTime: addMinutes(profile.wakeTime, 80),
+      timePoint: 0,
+      locationPoint: 1,
+      taskPoint: 1,
+      requiresLocation: true,
+      requiresTask: true,
+      locationLabel: "電車内",
+      taskLabel: profile.learningContent || "NotebookLM",
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "work_station",
+      label: "勤務先最寄駅到着",
+      emoji: "🏙️",
+      scheduledTime: "09:00",
+      timePoint: 0,
+      locationPoint: 1,
+      taskPoint: 0,
+      requiresLocation: true,
+      requiresTask: false,
+      locationLabel: profile.workStation || "勤務先最寄駅",
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "arrive_work",
+      label: "勤務先到着",
+      emoji: "🏢",
+      scheduledTime: "09:15",
+      timePoint: 1,
+      locationPoint: 1,
+      taskPoint: 0,
+      requiresLocation: true,
+      requiresTask: false,
+      locationLabel: profile.workAddress || "勤務先",
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "lunch_task",
+      label: "昼休みタスク",
+      emoji: "☕",
+      scheduledTime: "12:00",
+      timePoint: 0,
+      locationPoint: 0,
+      taskPoint: 1,
+      requiresLocation: false,
+      requiresTask: true,
+      taskLabel: "勉強・読書・散歩",
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "leave_work",
+      label: "退勤",
+      emoji: "👋",
+      scheduledTime: "18:00",
+      timePoint: 1,
+      locationPoint: 0,
+      taskPoint: 0,
+      requiresLocation: false,
+      requiresTask: false,
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "return_commute",
+      label: "帰宅中学習",
+      emoji: "🎧",
+      scheduledTime: "18:15",
+      timePoint: 0,
+      locationPoint: 1,
+      taskPoint: 1,
+      requiresLocation: true,
+      requiresTask: true,
+      locationLabel: "電車内",
+      taskLabel: profile.learningContent || "NotebookLM",
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+    {
+      id: "bedtime_detox",
+      label: "就寝前デトックス",
+      emoji: "🌙",
+      scheduledTime: profile.bedTime,
+      timePoint: 0,
+      locationPoint: 0,
+      taskPoint: 1,
+      requiresLocation: false,
+      requiresTask: true,
+      taskLabel: "デジタルデトックス・音楽",
+      timeAchieved: false,
+      locationAchieved: false,
+      taskAchieved: false,
+    },
+  ];
 }
 
-function calculateTimeScore(
-  schedule: ScheduleItem[],
-  currentMinutes: number,
-  difficulty: Difficulty
-): { score: number; deviation: number; nextEvent: ScheduleItem | null; minutesUntilNext: number } {
-  const multiplier = DIFFICULTY_MULTIPLIERS[difficulty];
-
-  // Find the most recent past event and the next upcoming event
-  let closestEvent: ScheduleItem | null = null;
-  let minDeviation = Infinity;
-  let nextEvent: ScheduleItem | null = null;
-  let minutesUntilNext = 0;
-
-  for (const item of schedule) {
-    const itemMinutes = timeToMinutes(item.time);
-    const diff = Math.abs(currentMinutes - itemMinutes);
-
-    if (diff < minDeviation) {
-      minDeviation = diff;
-      closestEvent = item;
-    }
-
-    if (itemMinutes > currentMinutes) {
-      if (!nextEvent || itemMinutes < timeToMinutes(nextEvent.time)) {
-        nextEvent = item;
-        minutesUntilNext = itemMinutes - currentMinutes;
-      }
-    }
-  }
-
-  // Score: 100 at 0 deviation, drops based on difficulty
-  // Easy: ±15min = 100, Hard: ±5min = 100
-  const tolerance = difficulty === "easy" ? 15 : difficulty === "normal" ? 10 : 5;
-  const rawScore = Math.max(0, 100 - (minDeviation / tolerance) * 30 * multiplier);
-
-  return {
-    score: Math.min(100, rawScore),
-    deviation: minDeviation,
-    nextEvent,
-    minutesUntilNext,
-  };
+// ===================== 旧互換: ScoreBreakdown型 =====================
+export interface ScoreBreakdown {
+  timeScore: number;
+  spaceScore: number;
+  activityScore: number;
+  emotionScore: number;
+  total: number;
 }
 
-function calculateActivityScore(schedule: ScheduleItem[]): number {
-  const completed = schedule.filter((s) => s.completed).length;
-  return schedule.length > 0 ? (completed / schedule.length) * 100 : 50;
-}
-
-function calculateWeightedTotal(
-  breakdown: Omit<ScoreBreakdown, "total">,
-  difficulty: Difficulty
-): number {
-  const { timeScore, spaceScore, activityScore, emotionScore } = breakdown;
-  const base = timeScore * 0.4 + spaceScore * 0.3 + activityScore * 0.2 + emotionScore * 0.1;
-  // Difficulty adjusts the ceiling
-  const multiplier = difficulty === "easy" ? 1.1 : difficulty === "hard" ? 0.9 : 1.0;
-  return Math.min(100, Math.max(0, base * multiplier));
-}
-
-const STORAGE_KEY = "life-mgmt-game-state";
-const WEEKLY_LOG_KEY = "life-mgmt-weekly-log";
-
-// 日付文字列 "YYYY-MM-DD"
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
-
-// 1日分のカテゴリ達成ログ
+// 旧互換: loadWeeklyLog / calcWeeklyStats (DailyProgressBar, WeeklyDonut用)
 export interface DayLog {
-  date: string; // "YYYY-MM-DD"
+  date: string;
   categoryStats: Record<string, { total: number; completed: number }>;
 }
 
-// 過去7日分のログを取得
 export function loadWeeklyLog(): DayLog[] {
   try {
-    const raw = localStorage.getItem(WEEKLY_LOG_KEY);
+    // 新形式のweeklyLogsから旧形式に変換
+    const raw = localStorage.getItem("lgm_weekly_logs_v2");
     if (!raw) return [];
-    return JSON.parse(raw) as DayLog[];
-  } catch {
-    return [];
-  }
+    const logs: WeeklyLog[] = JSON.parse(raw);
+    return logs.map(log => {
+      const catMap: Record<string, string> = {
+        wake: "wakeup",
+        morning_task: "pre_work",
+        commute_task: "commute_learn",
+        lunch_task: "break",
+        return_commute: "return_learn",
+        bedtime_detox: "pre_sleep",
+      };
+      const stats: Record<string, { total: number; completed: number }> = {};
+      for (const [newId, catId] of Object.entries(catMap)) {
+        const a = log.eventAchievements[newId];
+        stats[catId] = { total: 1, completed: a && (a.time || a.location || a.task) ? 1 : 0 };
+      }
+      return { date: log.date, categoryStats: stats };
+    });
+  } catch { return []; }
 }
 
-function saveWeeklyLog(logs: DayLog[]) {
-  try {
-    // 7日分だけ保持
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 7);
-    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,"0")}-${String(cutoff.getDate()).padStart(2,"0")}`;
-    const trimmed = logs.filter(l => l.date >= cutoffStr);
-    localStorage.setItem(WEEKLY_LOG_KEY, JSON.stringify(trimmed));
-  } catch {}
-}
-
-// 今日のログを更新
-export function upsertTodayLog(schedule: ScheduleItem[]) {
-  const logs = loadWeeklyLog();
-  const today = todayStr();
-  const CATS: ScheduleCategory[] = ["wakeup","pre_work","commute_learn","break","return_learn","pre_sleep"];
-  const stats: Record<string, { total: number; completed: number }> = {};
-  for (const cat of CATS) {
-    const items = schedule.filter(s => s.category === cat);
-    stats[cat] = { total: items.length, completed: items.filter(s => s.completed).length };
-  }
-  const idx = logs.findIndex(l => l.date === today);
-  if (idx >= 0) {
-    logs[idx] = { date: today, categoryStats: stats };
-  } else {
-    logs.push({ date: today, categoryStats: stats });
-  }
-  saveWeeklyLog(logs);
-}
-
-// 7日間のカテゴリ別積算達成率を計算
 export function calcWeeklyStats(logs: DayLog[]): Record<string, { totalItems: number; completedItems: number; rate: number }> {
   const CATS: ScheduleCategory[] = ["wakeup","pre_work","commute_learn","break","return_learn","pre_sleep"];
   const result: Record<string, { totalItems: number; completedItems: number; rate: number }> = {};
@@ -209,155 +327,245 @@ export function calcWeeklyStats(logs: DayLog[]): Record<string, { totalItems: nu
   return result;
 }
 
-function loadFromStorage(): Partial<GameState> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
+// ===================== スコア計算 =====================
+
+function calcScore(events: DailyEvent[]): { score: number; earned: number; total: number } {
+  const total = events.reduce(
+    (s, e) => s + e.timePoint + e.locationPoint + e.taskPoint, 0
+  );
+  const earned = events.reduce(
+    (s, e) =>
+      s +
+      (e.timeAchieved ? e.timePoint : 0) +
+      (e.locationAchieved ? e.locationPoint : 0) +
+      (e.taskAchieved ? e.taskPoint : 0),
+    0
+  );
+  const score = total > 0 ? Math.round((earned / total) * 100) : 0;
+  return { score, earned, total };
 }
 
-function saveToStorage(state: Partial<GameState>) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {}
+function getTodayKey(): string {
+  return new Date().toISOString().slice(0, 10);
 }
+
+// ===================== メインhook =====================
 
 export function useScoreEngine() {
-  const saved = loadFromStorage();
-
-  const [difficulty, setDifficulty] = useState<Difficulty>(
-    (saved.difficulty as Difficulty) || "normal"
-  );
-  const [schedule, setSchedule] = useState<ScheduleItem[]>(
-    saved.schedule || DEFAULT_SCHEDULE
-  );
-  const [cheatPoints, setCheatPoints] = useState<number>(
-    saved.cheatPoints ?? 85
-  );
-  const [streak, setStreak] = useState<number>(saved.streak ?? 3);
-  const [emotionLevel, setEmotionLevel] = useState<number>(
-    saved.emotionLevel ?? 3
-  );
-  const [spaceDeviation, setSpaceDeviation] = useState<number>(
-    saved.spaceDeviation ?? 0.2
-  );
-
-  const [gameState, setGameState] = useState<GameState>(() => {
-    const now = new Date();
-    return buildState(now, difficulty, schedule, cheatPoints, streak, emotionLevel, spaceDeviation);
+  const [profile, setProfileState] = useState<UserProfile>(() => {
+    try {
+      const s = localStorage.getItem("lgm_profile_v2");
+      return s ? { ...DEFAULT_PROFILE, ...JSON.parse(s) } : DEFAULT_PROFILE;
+    } catch { return DEFAULT_PROFILE; }
   });
 
-  const prevScoreRef = useRef(gameState.score.total);
+  const [events, setEvents] = useState<DailyEvent[]>(() => {
+    try {
+      const todayKey = getTodayKey();
+      const s = localStorage.getItem(`lgm_events_${todayKey}`);
+      if (s) return JSON.parse(s);
+      const prof = (() => {
+        try {
+          const ps = localStorage.getItem("lgm_profile_v2");
+          return ps ? { ...DEFAULT_PROFILE, ...JSON.parse(ps) } : DEFAULT_PROFILE;
+        } catch { return DEFAULT_PROFILE; }
+      })();
+      return buildDefaultEvents(prof);
+    } catch { return buildDefaultEvents(DEFAULT_PROFILE); }
+  });
 
-  function buildState(
-    now: Date,
-    diff: Difficulty,
-    sched: ScheduleItem[],
-    cp: number,
-    str: number,
-    emotion: number,
-    spaceDev: number
-  ): GameState {
-    const currentMinutes = getCurrentMinutes(now);
-    const { score: timeScore, deviation, nextEvent, minutesUntilNext } =
-      calculateTimeScore(sched, currentMinutes, diff);
-    const activityScore = calculateActivityScore(sched);
-    const spaceScore = Math.max(0, 100 - spaceDev * 50);
-    const emotionScore = (emotion / 5) * 100;
+  const [weeklyLogs, setWeeklyLogs] = useState<WeeklyLog[]>(() => {
+    try {
+      const s = localStorage.getItem("lgm_weekly_logs_v2");
+      return s ? JSON.parse(s) : [];
+    } catch { return []; }
+  });
 
-    const breakdown: Omit<ScoreBreakdown, "total"> = {
-      timeScore,
-      spaceScore,
-      activityScore,
-      emotionScore,
-    };
-    const total = calculateWeightedTotal(breakdown, diff);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [dayMode, setDayModeState] = useState<DayMode>(() => {
+    return (localStorage.getItem("lgm_day_mode") as DayMode) || "normal";
+  });
 
-    return {
-      score: { ...breakdown, total },
-      difficulty: diff,
-      cheatPoints: cp,
-      streak: str,
-      currentTime: now,
-      timeDeviation: deviation,
-      spaceDeviation: spaceDev,
-      schedule: sched,
-      nextEvent,
-      minutesUntilNext,
-      emotionLevel: emotion,
-      isWarning: deviation > (diff === "easy" ? 20 : diff === "normal" ? 15 : 10),
-      lastUpdated: now,
-    };
-  }
+  // 旧互換: difficulty (理想設定タブ等で使用)
+  const [difficulty] = useState<Difficulty>("normal");
 
-  // Recalculate every 30 seconds
+  // 1分毎に時刻更新
   useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const newState = buildState(now, difficulty, schedule, cheatPoints, streak, emotionLevel, spaceDeviation);
-      setGameState(newState);
-      prevScoreRef.current = newState.score.total;
-    };
+    const id = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
-    tick();
-    const interval = setInterval(tick, 30_000);
-    return () => clearInterval(interval);
-  }, [difficulty, schedule, cheatPoints, streak, emotionLevel, spaceDeviation]);
-
-  // Save to localStorage when key state changes
+  // イベント変更時にLocalStorageへ保存＆週間ログ更新
   useEffect(() => {
-    saveToStorage({ difficulty, schedule, cheatPoints, streak, emotionLevel, spaceDeviation });
-    // 週間ログも同時に更新
-    upsertTodayLog(schedule);
-  }, [difficulty, schedule, cheatPoints, streak, emotionLevel, spaceDeviation]);
+    const todayKey = getTodayKey();
+    localStorage.setItem(`lgm_events_${todayKey}`, JSON.stringify(events));
+    const { score, earned } = calcScore(events);
+    setWeeklyLogs(prev => {
+      const filtered = prev.filter(l => l.date !== todayKey);
+      const achievements: Record<string, { time: boolean; location: boolean; task: boolean }> = {};
+      events.forEach(e => {
+        achievements[e.id] = { time: e.timeAchieved, location: e.locationAchieved, task: e.taskAchieved };
+      });
+      const updated = [...filtered, { date: todayKey, score, earnedPoints: earned, eventAchievements: achievements }]
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-7);
+      localStorage.setItem("lgm_weekly_logs_v2", JSON.stringify(updated));
+      return updated;
+    });
+  }, [events]);
 
-  const toggleActivity = useCallback((id: string) => {
-    setSchedule((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, completed: !item.completed } : item
-      )
+  // プロフィール保存
+  const saveProfile = useCallback((p: Partial<UserProfile>) => {
+    setProfileState(prev => {
+      const next = { ...prev, ...p };
+      localStorage.setItem("lgm_profile_v2", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // イベント達成トグル
+  const toggleEventPoint = useCallback((eventId: string, pointType: PointType) => {
+    setEvents(prev =>
+      prev.map(e => {
+        if (e.id !== eventId) return e;
+        const key = pointType === "time" ? "timeAchieved"
+          : pointType === "location" ? "locationAchieved"
+          : "taskAchieved";
+        const newVal = !e[key];
+        return {
+          ...e,
+          [key]: newVal,
+          achievedAt: newVal
+            ? new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
+            : e.achievedAt,
+        };
+      })
     );
   }, []);
 
-  const changeDifficulty = useCallback((d: Difficulty) => {
-    setDifficulty(d);
+  // デイモード変更
+  const setDayMode = useCallback((mode: DayMode) => {
+    setDayModeState(mode);
+    localStorage.setItem("lgm_day_mode", mode);
   }, []);
 
-  const changeEmotion = useCallback((level: number) => {
-    setEmotionLevel(Math.max(1, Math.min(5, level)));
-  }, []);
+  // スコア計算
+  const { score: rawScore, earned, total } = calcScore(events);
 
-  const useCheat = useCallback((cost: number, type: "alarm" | "space") => {
-    if (cheatPoints < cost) return false;
-    setCheatPoints((prev) => prev - cost);
-    if (type === "space") {
-      setSpaceDeviation(0);
-    }
-    return true;
-  }, [cheatPoints]);
+  // 休日/出張/病欠モードは前日スコアを引き継ぎ
+  const effectiveScore = (() => {
+    if (dayMode === "normal") return rawScore;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yKey = yesterday.toISOString().slice(0, 10);
+    const yLog = weeklyLogs.find(l => l.date === yKey);
+    return yLog ? yLog.score : rawScore;
+  })();
 
-  const saveSchedule = useCallback((newSchedule: ScheduleItem[]) => {
-    setSchedule(newSchedule.map(item => ({ ...item, completed: false })));
-  }, []);
+  // 現在時刻に最も近い次のイベント
+  const nowStr = `${String(currentTime.getHours()).padStart(2, "0")}:${String(currentTime.getMinutes()).padStart(2, "0")}`;
+  const nextEvent = events.find(e =>
+    e.scheduledTime > nowStr &&
+    !e.timeAchieved && !e.taskAchieved && !e.locationAchieved
+  ) || null;
 
-  const forceUpdateScore = useCallback(() => {
-    const now = new Date();
-    const newState = buildState(now, difficulty, schedule, cheatPoints, streak, emotionLevel, spaceDeviation);
-    setGameState(newState);
-  }, [difficulty, schedule, cheatPoints, streak, emotionLevel, spaceDeviation]);
+  // 週間カテゴリ集計（帯グラフ用）
+  const weeklyCategories = [
+    { id: "wake", label: "起床", emoji: "🌅" },
+    { id: "morning_task", label: "朝タスク", emoji: "🧘" },
+    { id: "commute_task", label: "通勤学習", emoji: "📚" },
+    { id: "lunch_task", label: "昼休み", emoji: "☕" },
+    { id: "return_commute", label: "帰宅学習", emoji: "🎧" },
+    { id: "bedtime_detox", label: "就寝前", emoji: "🌙" },
+  ].map(cat => {
+    const total = weeklyLogs.length;
+    const achieved = weeklyLogs.filter(log => {
+      const a = log.eventAchievements[cat.id];
+      return a && (a.time || a.location || a.task);
+    }).length;
+    return { ...cat, achieved, total: Math.max(total, 1), rate: total > 0 ? Math.round((achieved / total) * 100) : 0 };
+  });
+
+  // 旧互換: gameState風オブジェクト（既存コンポーネント用）
+  const gameState = {
+    score: {
+      timeScore: events.filter(e => e.timeAchieved).length / Math.max(1, events.filter(e => e.timePoint > 0).length) * 100,
+      spaceScore: events.filter(e => e.locationAchieved).length / Math.max(1, events.filter(e => e.locationPoint > 0).length) * 100,
+      activityScore: events.filter(e => e.taskAchieved).length / Math.max(1, events.filter(e => e.taskPoint > 0).length) * 100,
+      emotionScore: 60,
+      total: effectiveScore,
+    },
+    difficulty,
+    cheatPoints: parseInt(localStorage.getItem("lgm_cheat_points") || "85"),
+    streak: parseInt(localStorage.getItem("lgm_streak") || "0"),
+    currentTime,
+    timeDeviation: 0,
+    spaceDeviation: 0,
+    schedule: events.map(e => ({
+      id: e.id,
+      time: e.scheduledTime,
+      location: e.locationLabel || "自宅",
+      activity: e.label,
+      completed: e.timeAchieved || e.taskAchieved || e.locationAchieved,
+      category: "other" as ScheduleCategory,
+    })),
+    nextEvent: nextEvent ? {
+      id: nextEvent.id,
+      time: nextEvent.scheduledTime,
+      location: nextEvent.locationLabel || "",
+      activity: nextEvent.label,
+      completed: false,
+    } : null,
+    minutesUntilNext: nextEvent ? (() => {
+      const [nh, nm] = nextEvent.scheduledTime.split(":").map(Number);
+      const now = currentTime;
+      return (nh * 60 + nm) - (now.getHours() * 60 + now.getMinutes());
+    })() : 0,
+    emotionLevel: 3,
+    isWarning: effectiveScore < 40,
+    lastUpdated: currentTime,
+  };
 
   return {
+    // 新API
+    profile,
+    saveProfile,
+    events,
+    setEvents,
+    toggleEventPoint,
+    score: effectiveScore,
+    earnedPoints: earned,
+    totalPoints: total,
+    dayMode,
+    setDayMode,
+    currentTime,
+    nextEvent,
+    weeklyLogs,
+    weeklyCategories,
+    buildDefaultEvents: () => buildDefaultEvents(profile),
+    // 旧互換API
     gameState,
     difficulty,
-    changeDifficulty,
-    toggleActivity,
-    changeEmotion,
-    useCheat,
-    forceUpdateScore,
-    setSpaceDeviation,
-    saveSchedule,
+    changeDifficulty: () => {},
+    toggleActivity: (id: string) => {
+      const ev = events.find(e => e.id === id);
+      if (!ev) return;
+      if (ev.taskPoint > 0) toggleEventPoint(id, "task");
+      else if (ev.timePoint > 0) toggleEventPoint(id, "time");
+      else if (ev.locationPoint > 0) toggleEventPoint(id, "location");
+    },
+    changeEmotion: () => {},
+    useCheat: (cost: number) => {
+      const cp = parseInt(localStorage.getItem("lgm_cheat_points") || "85");
+      if (cp < cost) return false;
+      localStorage.setItem("lgm_cheat_points", String(cp - cost));
+      return true;
+    },
+    forceUpdateScore: () => {},
+    setSpaceDeviation: () => {},
+    saveSchedule: (items: ScheduleItem[]) => {
+      // スケジュール変更時はイベントを再生成
+      setEvents(buildDefaultEvents(profile));
+    },
   };
 }

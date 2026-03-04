@@ -1,330 +1,444 @@
 /**
  * IdealScheduleTab.tsx
  * Design: Pastel Kawaii Life Manager
- * 「理想のスケジュール」タブ画面
- * プロフィール確認・スケジュール編集・モード変更
+ *
+ * 理想設定タブ（ポイント表準拠 UserProfile型対応）
+ * - 今日のモード（通常/休日/出張/病欠）
+ * - 基本プロフィール（名前・起床・就寝・アラーム）
+ * - 通勤設定（自宅最寄駅・勤務先最寄駅・勤務先住所）
+ * - 通勤中の学習内容
+ * - 休日設定
+ * - ポイントの仕組み説明
  */
 
 import { useState } from "react";
-import type { UserProfile } from "./ProfileSetup";
-import { LEARNING_OPTIONS_MAP, DAY_LABELS } from "./ProfileSetup";
-import type { ScheduleItem } from "@/hooks/useScoreEngine";
-import ScheduleEditor from "./ScheduleEditor";
+import type { UserProfile, DayMode } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
 
 interface Props {
   profile: UserProfile;
-  schedule: ScheduleItem[];
-  onSaveSchedule: (items: ScheduleItem[]) => void;
-  onUpdateProfile: (profile: UserProfile) => void;
+  onSave: (p: Partial<UserProfile>) => void;
+  dayMode: DayMode;
+  onDayModeChange: (m: DayMode) => void;
 }
 
-export default function IdealScheduleTab({ profile, schedule, onSaveSchedule, onUpdateProfile }: Props) {
-  const [showEditor, setShowEditor] = useState(false);
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [localProfile, setLocalProfile] = useState<UserProfile>({ ...profile });
+const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
-  const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => {
-    setLocalProfile((prev) => ({ ...prev, [key]: value }));
-  };
+const LEARNING_OPTIONS = [
+  { id: "英語学習（Duolingo）",    label: "英語（Duolingo）",    emoji: "🇬🇧" },
+  { id: "英語学習（NotebookLM）",  label: "英語（NotebookLM）",  emoji: "📓" },
+  { id: "読書（Kindle）",          label: "読書（Kindle）",       emoji: "📖" },
+  { id: "ビジネス書（NotebookLM）",label: "ビジネス書",           emoji: "💼" },
+  { id: "資格勉強（NotebookLM）",  label: "資格勉強",             emoji: "📝" },
+  { id: "語学（ポッドキャスト）",  label: "語学ポッドキャスト",   emoji: "🎙️" },
+  { id: "瞑想・マインドフルネス",  label: "瞑想・マインドフル",   emoji: "🧘" },
+  { id: "音楽鑑賞",                label: "音楽鑑賞",             emoji: "🎵" },
+  { id: "ニュース・情報収集",      label: "ニュース収集",         emoji: "📰" },
+  { id: "その他",                  label: "その他",               emoji: "✨" },
+];
 
-  const toggleOffDay = (day: number) => {
-    setLocalProfile((prev) => ({
-      ...prev,
-      offDays: prev.offDays.includes(day)
-        ? prev.offDays.filter((d) => d !== day)
-        : [...prev.offDays, day],
-    }));
-  };
+const DAY_MODE_OPTIONS: { value: DayMode; label: string; emoji: string; desc: string }[] = [
+  { value: "normal",        label: "通常モード",   emoji: "💼", desc: "通常の平日スケジュール" },
+  { value: "holiday",       label: "休日モード",   emoji: "🌸", desc: "前日スコアを引き継ぎ" },
+  { value: "business_trip", label: "出張モード",   emoji: "✈️", desc: "前日スコアを引き継ぎ" },
+  { value: "sick",          label: "病欠モード",   emoji: "🤒", desc: "前日スコアを引き継ぎ" },
+];
 
-  const saveProfile = () => {
-    const updated = { ...localProfile };
-    localStorage.setItem("lifemanager_profile", JSON.stringify(updated));
-    onUpdateProfile(updated);
-    setEditingProfile(false);
+export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeChange }: Props) {
+  const [local, setLocal] = useState<UserProfile>({ ...profile });
+  const [gpsLoading, setGpsLoading] = useState<"home" | "work" | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  function update<K extends keyof UserProfile>(key: K, value: UserProfile[K]) {
+    setLocal(prev => ({ ...prev, [key]: value }));
+  }
+
+  function toggleOffDay(day: number) {
+    const next = local.offDays.includes(day)
+      ? local.offDays.filter(d => d !== day)
+      : [...local.offDays, day];
+    update("offDays", next);
+  }
+
+  function handleSave() {
+    onSave(local);
+    setSaved(true);
     toast.success("設定を保存しました ✨", {
       style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" },
     });
-  };
+    setTimeout(() => setSaved(false), 2000);
+  }
 
-  const inputStyle = {
-    fontFamily: "'Noto Sans JP', sans-serif",
-    background: "rgba(255,255,255,0.9)",
-    border: "1.5px solid rgba(192,132,245,0.25)",
-    borderRadius: "0.875rem",
-    padding: "0.625rem 0.875rem",
-    fontSize: "0.875rem",
-    color: "rgba(0,0,0,0.7)",
+  function getGPS(type: "home" | "work") {
+    if (!navigator.geolocation) {
+      toast.error("位置情報がサポートされていません");
+      return;
+    }
+    setGpsLoading(type);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude.toFixed(5);
+        const lng = pos.coords.longitude.toFixed(5);
+        const label = `現在地 (${lat}, ${lng})`;
+        if (type === "home") update("homeStation", label);
+        else update("workStation", label);
+        setGpsLoading(null);
+        toast.success("位置情報を取得しました 📍");
+      },
+      () => {
+        toast.error("位置情報の取得に失敗しました。手動で入力してください。");
+        setGpsLoading(null);
+      }
+    );
+  }
+
+  const inputStyle: React.CSSProperties = {
     width: "100%",
+    padding: "9px 12px",
+    borderRadius: 10,
+    border: "1.5px solid rgba(192,132,245,0.25)",
+    background: "rgba(255,255,255,0.9)",
+    fontSize: 13,
+    color: "#374151",
     outline: "none",
+    boxSizing: "border-box",
+    fontFamily: "'Noto Sans JP', sans-serif",
   };
-
-  const MODES = [
-    { id: "solo", label: "ソロモード", emoji: "🌸" },
-    { id: "battle", label: "バトルモード", emoji: "⚔️" },
-    { id: "relax", label: "リラックス", emoji: "🌿" },
-  ];
-
-  const LEARNING_OPTIONS = [
-    { id: "podcast", label: "ポッドキャスト", emoji: "🎙️" },
-    { id: "notebooklm", label: "NotebookLM", emoji: "📓" },
-    { id: "audiobook", label: "オーディオブック", emoji: "📚" },
-    { id: "language", label: "語学学習", emoji: "🌍" },
-    { id: "music", label: "音楽・リラックス", emoji: "🎵" },
-    { id: "none", label: "なし", emoji: "💤" },
-  ];
 
   return (
-    <div className="flex flex-col gap-3">
+    <div style={{ paddingBottom: 80 }}>
 
-      {/* Profile card */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{ background: "rgba(255,255,255,0.85)", border: "1.5px solid rgba(192,132,245,0.2)", boxShadow: "0 2px 12px rgba(192,132,245,0.08)" }}
-      >
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(192,132,245,0.1)" }}>
-          <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-            🌸 プロフィール
-          </span>
-          <button
-            onClick={() => setEditingProfile(!editingProfile)}
-            className="text-xs px-3 py-1.5 rounded-full font-medium transition-all hover:opacity-80"
-            style={{
-              fontFamily: "'Noto Sans JP', sans-serif",
-              color: editingProfile ? "#dc2626" : "#a855f7",
-              background: editingProfile ? "rgba(252,165,165,0.15)" : "rgba(192,132,245,0.12)",
-              border: `1.5px solid ${editingProfile ? "rgba(252,165,165,0.4)" : "rgba(192,132,245,0.3)"}`,
-            }}
-          >
-            {editingProfile ? "✕ キャンセル" : "✏️ 編集"}
-          </button>
+      {/* 今日のモード */}
+      <SectionCard title="今日のモード" emoji="🎮">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {DAY_MODE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => onDayModeChange(opt.value)}
+              style={{
+                padding: "10px 8px",
+                borderRadius: 12,
+                border: dayMode === opt.value
+                  ? "2px solid #c084f5"
+                  : "1.5px solid rgba(0,0,0,0.08)",
+                background: dayMode === opt.value
+                  ? "linear-gradient(135deg, rgba(244,114,182,0.1), rgba(192,132,245,0.1))"
+                  : "rgba(255,255,255,0.7)",
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "all 0.2s",
+              }}
+            >
+              <div style={{ fontSize: 18, marginBottom: 2 }}>{opt.emoji}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: dayMode === opt.value ? "#7c3aed" : "#374151", fontFamily: "'Noto Sans JP', sans-serif" }}>
+                {opt.label}
+              </div>
+              <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2, fontFamily: "'Noto Sans JP', sans-serif" }}>{opt.desc}</div>
+            </button>
+          ))}
         </div>
+      </SectionCard>
 
-        <div className="px-4 py-3 flex flex-col gap-3">
-          {!editingProfile ? (
-            /* View mode */
-            <div className="flex flex-col gap-2">
-              {[
-                { icon: "👤", label: "お名前", value: profile.nickname },
-                { icon: "⏰", label: "起床時間", value: `${profile.wakeTime}（アラーム: ${profile.alarmEnabled ? "ON 🔔" : "OFF 🔕"}）` },
-                { icon: "🏠", label: "自宅最寄駅", value: profile.homeStation || "未設定" },
-                { icon: "🏢", label: "勤務先最寄駅", value: profile.workStation || "未設定" },
-                { icon: "📓", label: "通勤学習", value: LEARNING_OPTIONS.find((o) => o.id === profile.learningContent)?.label || "" },
-                { icon: "📅", label: "休日", value: profile.offDays.length > 0 ? profile.offDays.map((d) => DAY_LABELS[d]).join("・") : "なし" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-3">
-                  <span className="text-base w-6 text-center">{item.icon}</span>
-                  <span className="text-xs font-medium" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)", minWidth: "5.5rem" }}>
-                    {item.label}
-                  </span>
-                  <span className="text-sm" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.65)" }}>
-                    {item.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            /* Edit mode */
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.5)" }}>お名前</label>
-                <input type="text" value={localProfile.nickname} onChange={(e) => update("nickname", e.target.value)} style={inputStyle} />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.5)" }}>起床時間</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="time"
-                    value={localProfile.wakeTime}
-                    onChange={(e) => update("wakeTime", e.target.value)}
-                    style={{ ...inputStyle, width: "auto", colorScheme: "light", fontFamily: "'Shippori Mincho', serif", fontWeight: 700, color: "#a855f7" }}
-                  />
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.5)" }}>アラーム</span>
-                    <button
-                      onClick={() => update("alarmEnabled", !localProfile.alarmEnabled)}
-                      className="relative w-10 h-5 rounded-full transition-all duration-200"
-                      style={{ background: localProfile.alarmEnabled ? "linear-gradient(90deg, #f9a8d4, #c084f5)" : "rgba(0,0,0,0.12)" }}
-                    >
-                      <div
-                        className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-200"
-                        style={{ left: localProfile.alarmEnabled ? "calc(100% - 1.125rem)" : "0.125rem", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }}
-                      />
-                    </button>
-                    <span className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: localProfile.alarmEnabled ? "#a855f7" : "rgba(0,0,0,0.3)" }}>
-                      {localProfile.alarmEnabled ? "ON" : "OFF"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.5)" }}>自宅最寄駅</label>
-                <input type="text" placeholder="例：新宿" value={localProfile.homeStation} onChange={(e) => update("homeStation", e.target.value)} style={inputStyle} />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.5)" }}>勤務先最寄駅</label>
-                <input type="text" placeholder="例：大手町" value={localProfile.workStation} onChange={(e) => update("workStation", e.target.value)} style={inputStyle} />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.5)" }}>通勤中の学習</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {LEARNING_OPTIONS.map((opt) => {
-                    const isActive = localProfile.learningContent === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        onClick={() => update("learningContent", opt.id)}
-                        className="flex flex-col items-center gap-1 py-2 rounded-xl transition-all"
-                        style={{
-                          background: isActive ? "rgba(192,132,245,0.12)" : "rgba(0,0,0,0.03)",
-                          border: `1.5px solid ${isActive ? "rgba(192,132,245,0.4)" : "rgba(0,0,0,0.06)"}`,
-                        }}
-                      >
-                        <span className="text-base">{opt.emoji}</span>
-                        <span className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: isActive ? "#a855f7" : "rgba(0,0,0,0.45)", fontSize: "0.6rem", fontWeight: isActive ? 700 : 400 }}>
-                          {opt.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.5)" }}>休日</label>
-                <div className="flex gap-1.5">
-                  {DAY_LABELS.map((label: string, i: number) => {
-                    const isSelected = localProfile.offDays.includes(i);
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => toggleOffDay(i)}
-                        className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-                        style={{
-                          fontFamily: "'Shippori Mincho', serif",
-                          background: isSelected ? "rgba(192,132,245,0.15)" : "rgba(0,0,0,0.03)",
-                          border: `1.5px solid ${isSelected ? "rgba(192,132,245,0.4)" : "rgba(0,0,0,0.06)"}`,
-                          color: isSelected ? "#a855f7" : "rgba(0,0,0,0.4)",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
+      {/* 基本プロフィール */}
+      <SectionCard title="基本プロフィール" emoji="🌸">
+        <FieldRow label="名前（愛称でも可）">
+          <input
+            type="text"
+            value={local.name}
+            onChange={e => update("name", e.target.value)}
+            placeholder="例: みなみ"
+            style={inputStyle}
+          />
+        </FieldRow>
+        <FieldRow label="起床時間">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <input
+              type="time"
+              value={local.wakeTime}
+              onChange={e => update("wakeTime", e.target.value)}
+              style={{ ...inputStyle, width: "auto", colorScheme: "light" }}
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "'Noto Sans JP', sans-serif" }}>アラーム</span>
               <button
-                onClick={saveProfile}
-                className="w-full py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
+                onClick={() => update("alarmEnabled", !local.alarmEnabled)}
                 style={{
-                  fontFamily: "'Noto Sans JP', sans-serif",
-                  background: "linear-gradient(135deg, #f9a8d4, #c084f5)",
-                  color: "#fff",
-                  boxShadow: "0 4px 14px rgba(192,132,245,0.35)",
+                  width: 44,
+                  height: 24,
+                  borderRadius: 99,
+                  border: "none",
+                  background: local.alarmEnabled
+                    ? "linear-gradient(90deg, #f9a8d4, #c084f5)"
+                    : "rgba(0,0,0,0.15)",
+                  cursor: "pointer",
+                  position: "relative",
+                  transition: "background 0.3s",
+                  padding: 0,
+                  flexShrink: 0,
                 }}
               >
-                保存する ✨
+                <div style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  position: "absolute",
+                  top: 3,
+                  left: local.alarmEnabled ? 23 : 3,
+                  transition: "left 0.3s",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                }} />
               </button>
+              <span style={{ fontSize: 12, color: local.alarmEnabled ? "#7c3aed" : "#9ca3af", fontWeight: 600, fontFamily: "'Noto Sans JP', sans-serif" }}>
+                {local.alarmEnabled ? "ON 🔔" : "OFF 🔕"}
+              </span>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </FieldRow>
+        <FieldRow label="就寝時間">
+          <input
+            type="time"
+            value={local.bedTime}
+            onChange={e => update("bedTime", e.target.value)}
+            style={{ ...inputStyle, width: "auto", colorScheme: "light" }}
+          />
+        </FieldRow>
+      </SectionCard>
 
-      {/* Mode selection */}
-      <div
-        className="rounded-2xl p-4"
-        style={{ background: "rgba(255,255,255,0.85)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-      >
-        <div className="text-sm font-bold mb-3" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-          🎮 モード選択
-        </div>
-        <div className="flex gap-2">
-          {MODES.map((mode) => {
-            const isActive = profile.mode === mode.id;
-            return (
-              <button
-                key={mode.id}
-                onClick={() => {
-                  const updated = { ...profile, mode: mode.id as UserProfile["mode"] };
-                  localStorage.setItem("lifemanager_profile", JSON.stringify(updated));
-                  onUpdateProfile(updated);
-                  toast.success(`${mode.label}に変更しました`, { style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" } });
-                }}
-                className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl transition-all duration-200"
-                style={{
-                  background: isActive ? "rgba(192,132,245,0.12)" : "rgba(0,0,0,0.03)",
-                  border: `1.5px solid ${isActive ? "rgba(192,132,245,0.4)" : "rgba(0,0,0,0.06)"}`,
-                  transform: isActive ? "scale(1.03)" : "scale(1)",
-                  boxShadow: isActive ? "0 3px 10px rgba(192,132,245,0.18)" : "none",
-                }}
-              >
-                <span className="text-xl">{mode.emoji}</span>
-                <span className="text-xs font-medium" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: isActive ? "#a855f7" : "rgba(0,0,0,0.45)", fontWeight: isActive ? 700 : 400, fontSize: "0.65rem" }}>
-                  {mode.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* 通勤設定 */}
+      <SectionCard title="通勤設定" emoji="🚉">
+        <FieldRow label="自宅最寄駅">
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              type="text"
+              value={local.homeStation}
+              onChange={e => update("homeStation", e.target.value)}
+              placeholder="例: 前橋駅"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={() => getGPS("home")}
+              disabled={gpsLoading === "home"}
+              style={{
+                padding: "9px 10px",
+                borderRadius: 10,
+                border: "1.5px solid rgba(192,132,245,0.4)",
+                background: "rgba(192,132,245,0.08)",
+                color: "#7c3aed",
+                fontSize: 12,
+                cursor: gpsLoading === "home" ? "wait" : "pointer",
+                whiteSpace: "nowrap",
+                fontWeight: 600,
+                fontFamily: "'Noto Sans JP', sans-serif",
+                flexShrink: 0,
+              }}
+            >
+              {gpsLoading === "home" ? "取得中..." : "📍 現在地"}
+            </button>
+          </div>
+        </FieldRow>
+        <FieldRow label="勤務先最寄駅">
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              type="text"
+              value={local.workStation}
+              onChange={e => update("workStation", e.target.value)}
+              placeholder="例: 高崎駅"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={() => getGPS("work")}
+              disabled={gpsLoading === "work"}
+              style={{
+                padding: "9px 10px",
+                borderRadius: 10,
+                border: "1.5px solid rgba(192,132,245,0.4)",
+                background: "rgba(192,132,245,0.08)",
+                color: "#7c3aed",
+                fontSize: 12,
+                cursor: gpsLoading === "work" ? "wait" : "pointer",
+                whiteSpace: "nowrap",
+                fontWeight: 600,
+                fontFamily: "'Noto Sans JP', sans-serif",
+                flexShrink: 0,
+              }}
+            >
+              {gpsLoading === "work" ? "取得中..." : "📍 現在地"}
+            </button>
+          </div>
+        </FieldRow>
+        <FieldRow label="勤務先（住所・名称）">
+          <input
+            type="text"
+            value={local.workAddress}
+            onChange={e => update("workAddress", e.target.value)}
+            placeholder="例: ○○株式会社"
+            style={inputStyle}
+          />
+        </FieldRow>
+      </SectionCard>
 
-      {/* Ideal schedule */}
-      <div
-        className="rounded-2xl p-4"
-        style={{ background: "rgba(255,255,255,0.85)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-            📋 理想スケジュール
-          </span>
-          <button
-            onClick={() => setShowEditor(true)}
-            className="text-xs px-3 py-1.5 rounded-full font-medium transition-all hover:opacity-80"
-            style={{
-              fontFamily: "'Noto Sans JP', sans-serif",
-              color: "#a855f7",
-              background: "rgba(192,132,245,0.12)",
-              border: "1.5px solid rgba(192,132,245,0.3)",
-            }}
-          >
-            ✏️ 編集
-          </button>
+      {/* 通勤中の学習 */}
+      <SectionCard title="通勤中の学習内容" emoji="📚">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          {LEARNING_OPTIONS.map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => update("learningContent", opt.id)}
+              style={{
+                padding: "8px 10px",
+                borderRadius: 10,
+                border: local.learningContent === opt.id
+                  ? "2px solid #c084f5"
+                  : "1.5px solid rgba(0,0,0,0.08)",
+                background: local.learningContent === opt.id
+                  ? "linear-gradient(135deg, rgba(192,132,245,0.12), rgba(244,114,182,0.08))"
+                  : "rgba(255,255,255,0.7)",
+                fontSize: 12,
+                color: local.learningContent === opt.id ? "#7c3aed" : "#374151",
+                fontWeight: local.learningContent === opt.id ? 700 : 400,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "all 0.2s",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontFamily: "'Noto Sans JP', sans-serif",
+              }}
+            >
+              <span style={{ fontSize: 15 }}>{opt.emoji}</span>
+              <span>{opt.label}</span>
+            </button>
+          ))}
         </div>
-        <div className="flex flex-col gap-2">
-          {[...schedule]
-            .sort((a, b) => {
-              const [ah, am] = a.time.split(":").map(Number);
-              const [bh, bm] = b.time.split(":").map(Number);
-              return ah * 60 + am - (bh * 60 + bm);
-            })
-            .map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl"
-                style={{ background: "rgba(0,0,0,0.025)", border: "1px solid rgba(0,0,0,0.05)" }}
-              >
-                <span className="text-xs font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "#a855f7", minWidth: "2.5rem" }}>
-                  {item.time}
-                </span>
-                <span className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.35)", minWidth: "3rem" }}>
-                  📍 {item.location}
-                </span>
-                <span className="text-sm flex-1 truncate" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.6)" }}>
-                  {item.activity}
-                </span>
+      </SectionCard>
+
+      {/* 休日設定 */}
+      <SectionCard title="休日設定" emoji="🌿">
+        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+          {DAY_LABELS.map((label, idx) => (
+            <button
+              key={idx}
+              onClick={() => toggleOffDay(idx)}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                border: local.offDays.includes(idx)
+                  ? "2px solid #c084f5"
+                  : "1.5px solid rgba(0,0,0,0.1)",
+                background: local.offDays.includes(idx)
+                  ? "linear-gradient(135deg, #f9a8d4, #c084f5)"
+                  : "rgba(255,255,255,0.7)",
+                fontSize: 13,
+                fontWeight: 700,
+                color: local.offDays.includes(idx) ? "#fff" : "#6b7280",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "'Shippori Mincho', serif",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", marginTop: 8, fontFamily: "'Noto Sans JP', sans-serif" }}>
+          選択した曜日は休日モード扱い（前日スコアを引き継ぎ）
+        </div>
+      </SectionCard>
+
+      {/* ポイントの仕組み */}
+      <SectionCard title="ポイントの仕組み" emoji="💎">
+        <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.8, fontFamily: "'Noto Sans JP', sans-serif" }}>
+          {[
+            { emoji: "⏰", label: "時間ポイント", desc: "スケジュール通りに行動 (+1pt)" },
+            { emoji: "📍", label: "位置ポイント", desc: "指定場所への到達 (+1pt)" },
+            { emoji: "📚", label: "タスクポイント", desc: "学習・タスクの実行 (+1pt)" },
+          ].map(item => (
+            <div key={item.label} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>{item.emoji}</span>
+              <div>
+                <span style={{ fontWeight: 700, color: "#374151" }}>{item.label}</span>
+                <span style={{ marginLeft: 6 }}>{item.desc}</span>
               </div>
-            ))}
+            </div>
+          ))}
+          <div style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            background: "linear-gradient(135deg, rgba(244,114,182,0.06), rgba(192,132,245,0.08))",
+            borderRadius: 10,
+            fontSize: 11,
+            border: "1px solid rgba(192,132,245,0.15)",
+          }}>
+            <strong>1日最大13ポイント。</strong>獲得ポイント÷13×100がスコアになります。<br />
+            休日・出張・病欠モードは前日スコアを引き継ぎます。
+          </div>
         </div>
-      </div>
+      </SectionCard>
 
-      {showEditor && (
-        <ScheduleEditor schedule={schedule} onSave={onSaveSchedule} onClose={() => setShowEditor(false)} />
-      )}
+      {/* 保存ボタン */}
+      <button
+        onClick={handleSave}
+        style={{
+          width: "100%",
+          padding: "14px",
+          borderRadius: 14,
+          border: "none",
+          background: saved
+            ? "linear-gradient(135deg, #34d399, #6ee7b7)"
+            : "linear-gradient(135deg, #f9a8d4, #c084f5)",
+          color: "#fff",
+          fontSize: 15,
+          fontWeight: 700,
+          cursor: "pointer",
+          boxShadow: "0 4px 16px rgba(192,132,245,0.3)",
+          transition: "all 0.3s ease",
+          letterSpacing: "0.05em",
+          fontFamily: "'Noto Sans JP', sans-serif",
+        }}
+      >
+        {saved ? "✓ 保存しました！" : "💾 設定を保存する"}
+      </button>
+    </div>
+  );
+}
+
+// ─── サブコンポーネント ───────────────────────────────────────────────
+
+function SectionCard({ title, emoji, children }: { title: string; emoji: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      background: "rgba(255,255,255,0.82)",
+      borderRadius: 16,
+      padding: "14px 16px",
+      marginBottom: 12,
+      border: "1px solid rgba(0,0,0,0.06)",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+    }}>
+      <div style={{
+        fontSize: 13,
+        fontWeight: 700,
+        color: "#7c3aed",
+        marginBottom: 12,
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        fontFamily: "'Shippori Mincho', serif",
+      }}>
+        <span>{emoji}</span>
+        <span>{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, marginBottom: 5, fontFamily: "'Noto Sans JP', sans-serif" }}>{label}</div>
+      {children}
     </div>
   );
 }
