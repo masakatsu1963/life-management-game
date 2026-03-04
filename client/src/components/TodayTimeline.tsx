@@ -2,16 +2,16 @@
  * TodayTimeline.tsx
  * デザイン: パステルかわいい × タスク選択型タイムライン
  *
- * 変更点:
- * - isAuto=trueのイベントは非表示（自動取得ポイント）
- * - isAuto=falseのイベントのみ表示（タスク選択型）
- * - ポイント軸: 📚タスク / 💆リラックス / 📍位置
- * - コンテンツ選択でポイントがリアルタイム変動
+ * UX:
+ * - カードをタップ → コンテンツ選択が展開
+ * - コンテンツを選択 → 「OK ✓」ボタンが出現
+ * - OKボタン1タップ → タスク+リラックスポイントを一括加算
  */
 
 import { useState, useEffect } from "react";
 import type { DailyEvent, PointType } from "@/hooks/useScoreEngine";
 import { TASK_CONTENTS, calcTimeBonus } from "@/hooks/useScoreEngine";
+import { toast } from "sonner";
 
 interface Props {
   events: DailyEvent[];
@@ -54,10 +54,32 @@ export default function TodayTimeline({
     return () => clearInterval(id);
   }, []);
 
-  // タスク選択型イベントのみ表示
-  const visibleEvents = events.filter(e => !e.isAuto);
+  // タスク選択型イベントのみ表示（isAuto=falseかつisLocation=false）
+  const visibleEvents = events.filter(e => !e.isAuto && !e.isLocation);
   const now = nowStr(currentTime);
   const currentIdx = visibleEvents.findIndex(e => e.scheduledTime > now);
+
+  // OKボタン：タスク＋リラックスを一括加算
+  function handleOK(event: DailyEvent, e: React.MouseEvent) {
+    e.stopPropagation();
+    const content = TASK_CONTENTS.find(c => c.id === event.selectedContent);
+    const pts: string[] = [];
+
+    if (event.taskPoint > 0 && !event.taskAchieved) {
+      onToggle(event.id, "task");
+      pts.push(`📚 +${event.taskPoint}pt`);
+    }
+    if ((event.relaxPoint ?? 0) > 0 && !event.relaxAchieved) {
+      onToggle(event.id, "relax");
+      pts.push(`💆 +${event.relaxPoint}pt`);
+    }
+
+    const label = content ? `${content.emoji} ${content.label}` : event.label;
+    if (pts.length > 0) {
+      toast.success(`${label} 達成！ ${pts.join(" ")} 🌸`, { duration: 2500 });
+    }
+    setExpandedId(null);
+  }
 
   return (
     <div style={{ paddingBottom: 8 }}>
@@ -125,12 +147,14 @@ export default function TodayTimeline({
 
           const earnedEventPt =
             (event.taskAchieved ? event.taskPoint : 0) +
-            (event.relaxAchieved ? (event.relaxPoint ?? 0) : 0) +
-            (event.locationAchieved ? event.locationPoint : 0);
-          const totalEventPt = event.taskPoint + (event.relaxPoint ?? 0) + event.locationPoint;
+            (event.relaxAchieved ? (event.relaxPoint ?? 0) : 0);
+          const totalEventPt = event.taskPoint + (event.relaxPoint ?? 0);
           const allDone = earnedEventPt > 0 && earnedEventPt >= totalEventPt;
 
           const showNowMarker = idx === currentIdx;
+
+          // OKボタンを表示する条件：コンテンツが選択済み、かつ未達成
+          const canOK = !allDone;
 
           return (
             <div key={event.id}>
@@ -153,10 +177,11 @@ export default function TodayTimeline({
 
               {/* イベントカード */}
               <div
-                onClick={() => setExpandedId(expanded ? null : event.id)}
+                onClick={() => !allDone && setExpandedId(expanded ? null : event.id)}
                 style={{
                   display: "flex", alignItems: "flex-start",
-                  marginBottom: 8, cursor: "pointer",
+                  marginBottom: 8,
+                  cursor: allDone ? "default" : "pointer",
                   opacity: status === "past" && !allDone ? 0.65 : 1,
                   transition: "opacity 0.2s",
                 }}
@@ -174,6 +199,7 @@ export default function TodayTimeline({
                   zIndex: 1, position: "relative",
                   boxShadow: allDone ? "0 0 8px rgba(192,132,245,0.4)" : "none",
                   transition: "all 0.3s ease",
+                  color: "white",
                 }}>
                   {allDone ? "✓" : ""}
                 </div>
@@ -181,20 +207,22 @@ export default function TodayTimeline({
                 {/* カード本体 */}
                 <div style={{
                   flex: 1,
-                  background: isActive
+                  background: allDone
+                    ? "rgba(110,231,183,0.08)"
+                    : isActive
                     ? "linear-gradient(135deg, rgba(244,114,182,0.08) 0%, rgba(192,132,245,0.08) 100%)"
-                    : allDone ? "rgba(110,231,183,0.06)" : "rgba(255,255,255,0.7)",
+                    : "rgba(255,255,255,0.7)",
                   borderRadius: 14, padding: "10px 12px",
-                  border: isActive
-                    ? "1px solid rgba(192,132,245,0.3)"
-                    : allDone ? "1px solid rgba(110,231,183,0.3)" : "1px solid rgba(0,0,0,0.06)",
-                  boxShadow: isActive ? "0 2px 12px rgba(192,132,245,0.15)" : "none",
+                  border: allDone
+                    ? "1px solid rgba(110,231,183,0.3)"
+                    : isActive ? "1px solid rgba(192,132,245,0.3)" : "1px solid rgba(0,0,0,0.06)",
+                  boxShadow: isActive && !allDone ? "0 2px 12px rgba(192,132,245,0.15)" : "none",
                   transition: "all 0.3s ease",
                 }}>
                   {/* ヘッダー行 */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 16, flexShrink: 0 }}>{event.emoji}</span>
+                      <span style={{ fontSize: 18, flexShrink: 0 }}>{event.emoji}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
                           fontSize: 13, fontWeight: 600,
@@ -202,6 +230,7 @@ export default function TodayTimeline({
                           lineHeight: 1.3,
                         }}>
                           {event.label}
+                          {allDone && <span style={{ marginLeft: 6, fontSize: 11, color: "#10b981" }}>✓ 完了</span>}
                         </div>
                         <div style={{ fontSize: 11, color: "#9ca3af", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
                           <span>{event.scheduledTime}</span>
@@ -213,8 +242,8 @@ export default function TodayTimeline({
                               {selectedContent.emoji} {selectedContent.label}
                             </span>
                           )}
-                          {/* リアルタイムカウントダウン */}
-                          {!event.taskAchieved && event.taskPoint > 0 && (() => {
+                          {/* リアルタイムカウントダウン（10分前から表示） */}
+                          {!allDone && (() => {
                             const liveHHMM = `${String(liveTime.getHours()).padStart(2, "0")}:${String(liveTime.getMinutes()).padStart(2, "0")}`;
                             const [sh, sm] = event.scheduledTime.split(":").map(Number);
                             const diffSec = (sh * 60 + sm) * 60
@@ -236,139 +265,96 @@ export default function TodayTimeline({
                       </div>
                     </div>
 
-                    {/* ポイントバッジ */}
-                    <div style={{ display: "flex", gap: 3, alignItems: "center", flexShrink: 0, marginLeft: 6 }}>
-                      {event.taskPoint > 0 && (
+                    {/* 右側：ポイントバッジ or OKボタン */}
+                    <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0, marginLeft: 8 }}>
+                      {/* 達成済みバッジ */}
+                      {allDone ? (
                         <div style={{
-                          fontSize: 10, fontWeight: 700, padding: "2px 5px", borderRadius: 99,
-                          background: event.taskAchieved ? "rgba(244,114,182,0.2)" : "rgba(0,0,0,0.05)",
-                          color: event.taskAchieved ? "#be185d" : "#9ca3af",
+                          fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99,
+                          background: "rgba(110,231,183,0.2)", color: "#059669",
                         }}>
-                          📚{event.taskPoint}
+                          +{earnedEventPt}pt
                         </div>
+                      ) : (
+                        <>
+                          {/* ポイント合計バッジ */}
+                          <div style={{
+                            fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 99,
+                            background: "rgba(0,0,0,0.04)", color: "#9ca3af",
+                          }}>
+                            最大+{totalEventPt}pt
+                          </div>
+                          {/* 展開矢印 */}
+                          {!expanded && (
+                            <span style={{ fontSize: 10, color: "#d1d5db" }}>▼</span>
+                          )}
+                        </>
                       )}
-                      {(event.relaxPoint ?? 0) > 0 && (
-                        <div style={{
-                          fontSize: 10, fontWeight: 700, padding: "2px 5px", borderRadius: 99,
-                          background: event.relaxAchieved ? "rgba(167,139,250,0.2)" : "rgba(0,0,0,0.05)",
-                          color: event.relaxAchieved ? "#7c3aed" : "#9ca3af",
-                        }}>
-                          💆{event.relaxPoint}
-                        </div>
-                      )}
-                      {event.locationPoint > 0 && (
-                        <div style={{
-                          fontSize: 10, fontWeight: 700, padding: "2px 5px", borderRadius: 99,
-                          background: event.locationAchieved ? "rgba(96,165,250,0.2)" : "rgba(0,0,0,0.05)",
-                          color: event.locationAchieved ? "#1d4ed8" : "#9ca3af",
-                        }}>
-                          📍{event.locationPoint}
-                        </div>
-                      )}
-                      <span style={{ fontSize: 10, color: "#d1d5db", marginLeft: 2 }}>
-                        {expanded ? "▲" : "▼"}
-                      </span>
                     </div>
                   </div>
 
-                  {/* 展開パネル */}
-                  {expanded && (
-                    <div style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 10 }}>
+                  {/* 展開パネル：コンテンツ選択 + OKボタン */}
+                  {expanded && !allDone && (
+                    <div
+                      style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 10 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {/* タスク内容セレクト */}
                       {event.requiresTask && (
-                        <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginBottom: 6 }}>
-                            タスク内容を選択（ポイントが変わります）
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginBottom: 8 }}>
+                            何をしましたか？
                           </div>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                             {TASK_CONTENTS.map(c => (
                               <button
                                 key={c.id}
-                                onClick={(ev) => { ev.stopPropagation(); onContentChange(event.id, c.id); }}
+                                onClick={() => onContentChange(event.id, c.id)}
                                 style={{
                                   display: "flex", alignItems: "center", gap: 6,
-                                  padding: "7px 10px", borderRadius: 12, fontSize: 12, fontWeight: 500,
+                                  padding: "8px 10px", borderRadius: 12, fontSize: 12, fontWeight: 500,
                                   cursor: "pointer", transition: "all 0.15s",
                                   background: event.selectedContent === c.id
-                                    ? "rgba(244,114,182,0.15)" : "rgba(0,0,0,0.03)",
+                                    ? "linear-gradient(135deg, rgba(244,114,182,0.2), rgba(192,132,245,0.2))"
+                                    : "rgba(0,0,0,0.03)",
                                   border: event.selectedContent === c.id
                                     ? "1.5px solid rgba(244,114,182,0.5)" : "1px solid rgba(0,0,0,0.08)",
                                   color: event.selectedContent === c.id ? "#be185d" : "#6b7280",
+                                  boxShadow: event.selectedContent === c.id ? "0 2px 6px rgba(244,114,182,0.2)" : "none",
                                 }}
                               >
-                                <span style={{ fontSize: 14 }}>{c.emoji}</span>
+                                <span style={{ fontSize: 16 }}>{c.emoji}</span>
                                 <span style={{ flex: 1, textAlign: "left" }}>{c.label}</span>
-                                <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                                  <span style={{ fontSize: 10, color: "#f472b6", fontWeight: 700 }}>📚{c.taskPt}</span>
-                                  {c.relaxPt > 0 && (
-                                    <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700 }}>💆{c.relaxPt}</span>
-                                  )}
-                                </div>
+                                <span style={{ fontSize: 10, color: "#f472b6", fontWeight: 700, flexShrink: 0 }}>
+                                  +{c.taskPt + (c.relaxPt ?? 0)}pt
+                                </span>
                               </button>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* ポイント記録ボタン */}
-                      <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginBottom: 6 }}>
-                        ポイントを記録
-                      </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {event.taskPoint > 0 && (
-                          <button
-                            onClick={(ev) => { ev.stopPropagation(); onToggle(event.id, "task"); }}
-                            style={{
-                              padding: "8px 14px", borderRadius: 12, fontSize: 12, fontWeight: 700,
-                              cursor: "pointer", transition: "all 0.15s",
-                              background: event.taskAchieved
-                                ? "linear-gradient(135deg, #f9a8d4, #f472b6)" : "rgba(244,114,182,0.08)",
-                              border: event.taskAchieved ? "none" : "1px solid rgba(244,114,182,0.3)",
-                              color: event.taskAchieved ? "#fff" : "#be185d",
-                              boxShadow: event.taskAchieved ? "0 2px 8px rgba(244,114,182,0.3)" : "none",
-                            }}
-                          >
-                            📚 タスク +{event.taskPoint}pt {event.taskAchieved ? "✓" : ""}
-                          </button>
-                        )}
-                        {(event.relaxPoint ?? 0) > 0 && (
-                          <button
-                            onClick={(ev) => { ev.stopPropagation(); onToggle(event.id, "relax"); }}
-                            style={{
-                              padding: "8px 14px", borderRadius: 12, fontSize: 12, fontWeight: 700,
-                              cursor: "pointer", transition: "all 0.15s",
-                              background: event.relaxAchieved
-                                ? "linear-gradient(135deg, #c4b5fd, #a78bfa)" : "rgba(167,139,250,0.08)",
-                              border: event.relaxAchieved ? "none" : "1px solid rgba(167,139,250,0.3)",
-                              color: event.relaxAchieved ? "#fff" : "#7c3aed",
-                              boxShadow: event.relaxAchieved ? "0 2px 8px rgba(167,139,250,0.3)" : "none",
-                            }}
-                          >
-                            💆 リラックス +{event.relaxPoint}pt {event.relaxAchieved ? "✓" : ""}
-                          </button>
-                        )}
-                        {event.locationPoint > 0 && (
-                          <button
-                            onClick={(ev) => { ev.stopPropagation(); onToggle(event.id, "location"); }}
-                            style={{
-                              padding: "8px 14px", borderRadius: 12, fontSize: 12, fontWeight: 700,
-                              cursor: "pointer", transition: "all 0.15s",
-                              background: event.locationAchieved
-                                ? "linear-gradient(135deg, #93c5fd, #60a5fa)" : "rgba(96,165,250,0.08)",
-                              border: event.locationAchieved ? "none" : "1px solid rgba(96,165,250,0.3)",
-                              color: event.locationAchieved ? "#fff" : "#1d4ed8",
-                              boxShadow: event.locationAchieved ? "0 2px 8px rgba(96,165,250,0.3)" : "none",
-                            }}
-                          >
-                            📍 位置 +{event.locationPoint}pt {event.locationAchieved ? "✓" : ""}
-                          </button>
-                        )}
-                      </div>
-
-                      {event.requiresLocation && event.locationLabel && (
-                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
-                          📍 場所: {event.locationLabel}
-                        </div>
+                      {/* OKボタン */}
+                      {canOK && (
+                        <button
+                          onClick={(e) => handleOK(event, e)}
+                          style={{
+                            width: "100%",
+                            padding: "12px",
+                            borderRadius: 14,
+                            fontSize: 15,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            border: "none",
+                            background: "linear-gradient(135deg, #f9a8d4, #c084fc)",
+                            color: "white",
+                            boxShadow: "0 4px 14px rgba(192,132,252,0.4)",
+                            letterSpacing: "0.05em",
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          ✓ OK！ポイント加算
+                        </button>
                       )}
                     </div>
                   )}
