@@ -18,6 +18,7 @@ import LocationPanel from "@/components/LocationPanel";
 import { useScoreEngine } from "@/hooks/useScoreEngine";
 import ProfileSetup, { type UserProfile, DEFAULT_PROFILE } from "@/components/ProfileSetup";
 import IdealScheduleTab from "@/components/IdealScheduleTab";
+import HelpPage from "@/components/HelpPage";
 import { toast } from "sonner";
 
 const HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663145989169/V3mzZwvpdi82dLMoVHx8Pr/hero-bg-JeDdhMmnmpUPNBZ3PigiRd.webp";
@@ -48,7 +49,7 @@ export default function Home() {
 
   const [profile, setProfile] = useState<UserProfile | null>(() => loadProfile());
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<"dashboard" | "schedule" | "ideal">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "schedule" | "ideal" | "help">("dashboard");
   const prevScoreRef = useRef(gameState.score.total);
   const [scoreFlash, setScoreFlash] = useState(false);
 
@@ -240,8 +241,8 @@ export default function Home() {
           className="mb-3 flex rounded-2xl overflow-hidden p-1"
           style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(0,0,0,0.06)" }}
         >
-          {(["dashboard", "schedule", "ideal"] as const).map((tab) => {
-            const labels = { dashboard: "📊 ダッシュ", schedule: "📋 今日", ideal: "🌸 理想設定" };
+          {(["dashboard", "schedule", "ideal", "help"] as const).map((tab) => {
+            const labels = { dashboard: "📊 ダッシュ", schedule: "📋 今日", ideal: "🌸 理想設定", help: "📖 使い方" };
             const isActive = activeTab === tab;
             return (
               <button
@@ -357,6 +358,9 @@ export default function Home() {
             onUpdateProfile={(updated) => setProfile(updated)}
           />
         )}
+
+        {/* === HELP TAB === */}
+        {activeTab === "help" && <HelpPage />}
       </main>
 
       {/* Bottom navigation */}
@@ -369,9 +373,9 @@ export default function Home() {
           boxShadow: "0 -4px 20px rgba(244,114,182,0.08)",
         }}
       >
-        {(["dashboard", "schedule", "ideal"] as const).map((tab) => {
-          const icons = { dashboard: "📊", schedule: "📋", ideal: "🌸" };
-          const labels = { dashboard: "ダッシュ", schedule: "今日", ideal: "理想設定" };
+        {(["dashboard", "schedule", "ideal", "help"] as const).map((tab) => {
+          const icons = { dashboard: "📊", schedule: "📋", ideal: "🌸", help: "📖" };
+          const labels = { dashboard: "ダッシュ", schedule: "今日", ideal: "理想設定", help: "使い方" };
           const isActive = activeTab === tab;
           return (
             <button
