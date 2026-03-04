@@ -60,6 +60,7 @@ export interface DailyEvent {
   requiresLocation: boolean;
   requiresTask: boolean;
   isAuto: boolean;             // true=自動取得（非表示）, false=タスク選択型
+  isLocation?: boolean;        // true=移動ログタブに表示する位置イベント
   locationLabel?: string;
   taskLabel?: string;
   selectedContent?: string;    // 選択中のタスクコンテンツID
@@ -150,22 +151,22 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
   const autoEvents: DailyEvent[] = [
     { ...BASE, id: "wake", label: "起床", emoji: "🌅",
       scheduledTime: profile.wakeTime, timePoint: 1, locationPoint: 0, taskPoint: 0,
-      requiresLocation: false, requiresTask: false, isAuto: true },
-    { ...BASE, id: "leave_home", label: "家を出る", emoji: "🚪",
+      requiresLocation: false, requiresTask: false, isAuto: true, isLocation: false },
+    { ...BASE, id: "leave_home", label: "家を出る", emoji: "🚶",
       scheduledTime: addMinutes(profile.wakeTime, 60), timePoint: 0, locationPoint: 1, taskPoint: 0,
-      requiresLocation: true, requiresTask: false, isAuto: true, locationLabel: "自宅周辺" },
-    { ...BASE, id: "home_station", label: "最寄駅到着", emoji: "🙉",
+      requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: "自宅周辺" },
+    { ...BASE, id: "home_station", label: "最寄駅到着", emoji: "🚆",
       scheduledTime: addMinutes(profile.wakeTime, 75), timePoint: 0, locationPoint: 1, taskPoint: 0,
-      requiresLocation: true, requiresTask: false, isAuto: true, locationLabel: profile.homeStation || "最寄駅" },
+      requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.homeStation || "最寄駅" },
     { ...BASE, id: "work_station", label: "勤務先最寄駅到着", emoji: "🏙️",
       scheduledTime: "09:00", timePoint: 0, locationPoint: 1, taskPoint: 0,
-      requiresLocation: true, requiresTask: false, isAuto: true, locationLabel: profile.workStation || "勤務先最寄駅" },
+      requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.workStation || "勤務先最寄駅" },
     { ...BASE, id: "arrive_work", label: "勤務先到着", emoji: "🏢",
       scheduledTime: "09:15", timePoint: 1, locationPoint: 1, taskPoint: 0,
-      requiresLocation: true, requiresTask: false, isAuto: true, locationLabel: profile.workAddress || "勤務先" },
+      requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.workAddress || "勤務先" },
     { ...BASE, id: "leave_work", label: "退勤", emoji: "👋",
       scheduledTime: "18:00", timePoint: 1, locationPoint: 0, taskPoint: 0,
-      requiresLocation: false, requiresTask: false, isAuto: true },
+      requiresLocation: false, requiresTask: false, isAuto: true, isLocation: true },
   ];
 
   // タスク選択型イベント（表示）

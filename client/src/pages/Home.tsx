@@ -16,6 +16,7 @@ import WeeklyDonut from "@/components/WeeklyDonut";
 import DailyProgressBar from "@/components/DailyProgressBar";
 import CheatPanel from "@/components/CheatPanel";
 import TodayTimeline from "@/components/TodayTimeline";
+import LocationLog from "@/components/LocationLog";
 import IdealScheduleTab from "@/components/IdealScheduleTab";
 import HelpPage from "@/components/HelpPage";
 import { useScoreEngine } from "@/hooks/useScoreEngine";
@@ -23,6 +24,7 @@ import { toast } from "sonner";
 
 type FootTab = "today" | "week" | "ideal" | "help";
 type GraphTab = "today" | "week";
+type TodaySubTab = "tasks" | "movement";
 
 export default function Home() {
   const {
@@ -46,6 +48,7 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState<FootTab>("today");
   const [graphTab, setGraphTab] = useState<GraphTab>("today");
+  const [todaySubTab, setTodaySubTab] = useState<TodaySubTab>("tasks");
   const [showSetup, setShowSetup] = useState(() => !profile.name);
   const prevScoreRef = useRef(score);
   const [scoreFlash, setScoreFlash] = useState(false);
@@ -331,32 +334,82 @@ export default function Home() {
         )}
 
         {/* =============================================
-            今日タブ: タイムライン型スケジュール
+            今日タブ: タスク / 移動ログ サブタブ
         ============================================= */}
         {activeTab === "today" && (
           <div className="flex flex-col gap-3">
+            {/* サブタブ切り替え */}
             <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
+              className="flex rounded-2xl overflow-hidden p-1"
+              style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
-                  🌸 今日のタイムライン
-                </span>
-                <span className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontFamily: "'Noto Sans JP', sans-serif" }}>
-                  タップで達成記録
-                </span>
-              </div>
-              <TodayTimeline
-                events={events}
-                currentTime={currentTime}
-                onToggle={toggleEventPoint}
-                onContentChange={updateEventContent}
-                earnedPoints={earnedPoints}
-                totalPoints={totalPoints}
-                bonusTotal={bonusTotal}
-              />
+              {(["tasks", "movement"] as const).map((t) => {
+                const active = todaySubTab === t;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setTodaySubTab(t)}
+                    className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
+                    style={{
+                      fontFamily: "'Noto Sans JP', sans-serif",
+                      background: active ? "linear-gradient(135deg, #f9a8d4, #c084fc)" : "transparent",
+                      color: active ? "white" : "rgba(0,0,0,0.4)",
+                      boxShadow: active ? "0 2px 8px rgba(192,132,252,0.3)" : "none",
+                    }}
+                  >
+                    {t === "tasks" ? "🌸 タスク" : "📍 移動ログ"}
+                  </button>
+                );
+              })}
             </div>
+
+            {/* タスクタイムライン */}
+            {todaySubTab === "tasks" && (
+              <div
+                className="rounded-2xl p-4"
+                style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
+                    🌸 今日のタスク
+                  </span>
+                  <span className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontFamily: "'Noto Sans JP', sans-serif" }}>
+                    タップで達成記録
+                  </span>
+                </div>
+                <TodayTimeline
+                  events={events}
+                  currentTime={currentTime}
+                  onToggle={toggleEventPoint}
+                  onContentChange={updateEventContent}
+                  earnedPoints={earnedPoints}
+                  totalPoints={totalPoints}
+                  bonusTotal={bonusTotal}
+                />
+              </div>
+            )}
+
+            {/* 移動ログ */}
+            {todaySubTab === "movement" && (
+              <div
+                className="rounded-2xl p-4"
+                style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.6)" }}>
+                    📍 移動ログ
+                  </span>
+                  <span className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontFamily: "'Noto Sans JP', sans-serif" }}>
+                    位置情報自動取得
+                  </span>
+                </div>
+                <LocationLog
+                  events={events}
+                  currentTime={currentTime}
+                  onToggle={toggleEventPoint}
+                />
+              </div>
+            )}
           </div>
         )}
 
