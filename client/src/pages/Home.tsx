@@ -30,6 +30,7 @@ export default function Home() {
     saveProfile,
     events,
     toggleEventPoint,
+    updateEventContent,
     score,
     earnedPoints,
     totalPoints,
@@ -350,6 +351,7 @@ export default function Home() {
                 events={events}
                 currentTime={currentTime}
                 onToggle={toggleEventPoint}
+                onContentChange={updateEventContent}
                 earnedPoints={earnedPoints}
                 totalPoints={totalPoints}
                 bonusTotal={bonusTotal}

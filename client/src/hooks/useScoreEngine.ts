@@ -23,8 +23,30 @@ import { useState, useEffect, useCallback } from "react";
 
 // ===================== 型定義 =====================
 
-export type PointType = "time" | "location" | "task";
+export type PointType = "time" | "location" | "task" | "relax";
 export type DayMode = "normal" | "holiday" | "business_trip" | "sick";
+
+// タスクコンテンツ別ポイント定義
+export interface TaskContent {
+  id: string;
+  label: string;
+  emoji: string;
+  taskPt: number;    // タスクポイント
+  relaxPt: number;   // リラックスポイント
+}
+
+export const TASK_CONTENTS: TaskContent[] = [
+  { id: "study",    label: "勉強",       emoji: "📖", taskPt: 5, relaxPt: 0 },
+  { id: "reading",  label: "読書",       emoji: "📚", taskPt: 4, relaxPt: 1 },
+  { id: "music",    label: "音楽",       emoji: "🎵", taskPt: 3, relaxPt: 3 },
+  { id: "podcast",  label: "ポッドキャスト", emoji: "🎙️", taskPt: 3, relaxPt: 2 },
+  { id: "chat",     label: "おしゃべり",   emoji: "💬", taskPt: 3, relaxPt: 3 },
+  { id: "walk",     label: "散歩",       emoji: "🚶", taskPt: 3, relaxPt: 4 },
+  { id: "stretch",  label: "ストレッチ",   emoji: "🧘", taskPt: 4, relaxPt: 4 },
+  { id: "nap",      label: "仮眠",       emoji: "😴", taskPt: 2, relaxPt: 5 },
+  { id: "detox",    label: "デトックス",   emoji: "🌿", taskPt: 3, relaxPt: 5 },
+  { id: "notebook", label: "NotebookLM", emoji: "🤖", taskPt: 5, relaxPt: 0 },
+];
 
 export interface DailyEvent {
   id: string;
@@ -33,15 +55,19 @@ export interface DailyEvent {
   scheduledTime: string;       // "HH:MM"
   timePoint: number;           // 時間ポイント (0 or 1)
   locationPoint: number;       // 位置ポイント (0 or 1)
-  taskPoint: number;           // タスクポイント (0 or 1)
+  taskPoint: number;           // タスクポイント (コンテンツ別変動)
+  relaxPoint: number;          // リラックスポイント (コンテンツ別変動)
   requiresLocation: boolean;
   requiresTask: boolean;
+  isAuto: boolean;             // true=自動取得（非表示）, false=タスク選択型
   locationLabel?: string;
   taskLabel?: string;
+  selectedContent?: string;    // 選択中のタスクコンテンツID
   // 達成状態
   timeAchieved: boolean;
   locationAchieved: boolean;
   taskAchieved: boolean;
+  relaxAchieved: boolean;      // リラックス達成
   achievedAt?: string;
   timeBonus?: number;           // 時間精度ボーナス（0〜5）
 }
@@ -104,174 +130,76 @@ function addMinutes(time: string, mins: number): string {
   return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
 }
 
+// タスクコンテンツIDからポイントを取得
+function getContentPts(contentId: string | undefined): { taskPt: number; relaxPt: number } {
+  if (!contentId) return { taskPt: 3, relaxPt: 2 };
+  const c = TASK_CONTENTS.find(t => t.id === contentId);
+  return c ? { taskPt: c.taskPt, relaxPt: c.relaxPt } : { taskPt: 3, relaxPt: 2 };
+}
+
 export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
-  return [
-    {
-      id: "wake",
-      label: "起床",
-      emoji: "🌅",
-      scheduledTime: profile.wakeTime,
-      timePoint: 1,
-      locationPoint: 0,
-      taskPoint: 0,
-      requiresLocation: false,
-      requiresTask: false,
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "morning_task",
-      label: "朝の瞑想・タスク",
-      emoji: "🧘",
-      scheduledTime: addMinutes(profile.wakeTime, 15),
-      timePoint: 0,
-      locationPoint: 0,
-      taskPoint: 1,
-      requiresLocation: false,
-      requiresTask: true,
-      taskLabel: "NotebookLM / 瞑想",
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "leave_home",
-      label: "家を出る",
-      emoji: "🚪",
-      scheduledTime: addMinutes(profile.wakeTime, 60),
-      timePoint: 0,
-      locationPoint: 1,
-      taskPoint: 0,
-      requiresLocation: true,
-      requiresTask: false,
-      locationLabel: "自宅周辺",
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "home_station",
-      label: "最寄駅到着",
-      emoji: "🚉",
-      scheduledTime: addMinutes(profile.wakeTime, 75),
-      timePoint: 0,
-      locationPoint: 1,
-      taskPoint: 0,
-      requiresLocation: true,
-      requiresTask: false,
-      locationLabel: profile.homeStation || "最寄駅",
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "commute_task",
-      label: "通勤中学習",
-      emoji: "📚",
-      scheduledTime: addMinutes(profile.wakeTime, 80),
-      timePoint: 0,
-      locationPoint: 1,
-      taskPoint: 1,
-      requiresLocation: true,
-      requiresTask: true,
-      locationLabel: "電車内",
-      taskLabel: profile.learningContent || "NotebookLM",
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "work_station",
-      label: "勤務先最寄駅到着",
-      emoji: "🏙️",
-      scheduledTime: "09:00",
-      timePoint: 0,
-      locationPoint: 1,
-      taskPoint: 0,
-      requiresLocation: true,
-      requiresTask: false,
-      locationLabel: profile.workStation || "勤務先最寄駅",
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "arrive_work",
-      label: "勤務先到着",
-      emoji: "🏢",
-      scheduledTime: "09:15",
-      timePoint: 1,
-      locationPoint: 1,
-      taskPoint: 0,
-      requiresLocation: true,
-      requiresTask: false,
-      locationLabel: profile.workAddress || "勤務先",
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "lunch_task",
-      label: "昼休みタスク",
-      emoji: "☕",
-      scheduledTime: "12:00",
-      timePoint: 0,
-      locationPoint: 0,
-      taskPoint: 1,
-      requiresLocation: false,
-      requiresTask: true,
-      taskLabel: "勉強・読書・散歩",
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "leave_work",
-      label: "退勤",
-      emoji: "👋",
-      scheduledTime: "18:00",
-      timePoint: 1,
-      locationPoint: 0,
-      taskPoint: 0,
-      requiresLocation: false,
-      requiresTask: false,
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "return_commute",
-      label: "帰宅中学習",
-      emoji: "🎧",
-      scheduledTime: "18:15",
-      timePoint: 0,
-      locationPoint: 1,
-      taskPoint: 1,
-      requiresLocation: true,
-      requiresTask: true,
-      locationLabel: "電車内",
-      taskLabel: profile.learningContent || "NotebookLM",
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
-    {
-      id: "bedtime_detox",
-      label: "就寝前デトックス",
-      emoji: "🌙",
-      scheduledTime: profile.bedTime,
-      timePoint: 0,
-      locationPoint: 0,
-      taskPoint: 1,
-      requiresLocation: false,
-      requiresTask: true,
-      taskLabel: "デジタルデトックス・音楽",
-      timeAchieved: false,
-      locationAchieved: false,
-      taskAchieved: false,
-    },
+  const BASE = {
+    timeAchieved: false,
+    locationAchieved: false,
+    taskAchieved: false,
+    relaxAchieved: false,
+    relaxPoint: 0,
+  };
+
+  // 自動取得イベント（非表示）
+  const autoEvents: DailyEvent[] = [
+    { ...BASE, id: "wake", label: "起床", emoji: "🌅",
+      scheduledTime: profile.wakeTime, timePoint: 1, locationPoint: 0, taskPoint: 0,
+      requiresLocation: false, requiresTask: false, isAuto: true },
+    { ...BASE, id: "leave_home", label: "家を出る", emoji: "🚪",
+      scheduledTime: addMinutes(profile.wakeTime, 60), timePoint: 0, locationPoint: 1, taskPoint: 0,
+      requiresLocation: true, requiresTask: false, isAuto: true, locationLabel: "自宅周辺" },
+    { ...BASE, id: "home_station", label: "最寄駅到着", emoji: "🙉",
+      scheduledTime: addMinutes(profile.wakeTime, 75), timePoint: 0, locationPoint: 1, taskPoint: 0,
+      requiresLocation: true, requiresTask: false, isAuto: true, locationLabel: profile.homeStation || "最寄駅" },
+    { ...BASE, id: "work_station", label: "勤務先最寄駅到着", emoji: "🏙️",
+      scheduledTime: "09:00", timePoint: 0, locationPoint: 1, taskPoint: 0,
+      requiresLocation: true, requiresTask: false, isAuto: true, locationLabel: profile.workStation || "勤務先最寄駅" },
+    { ...BASE, id: "arrive_work", label: "勤務先到着", emoji: "🏢",
+      scheduledTime: "09:15", timePoint: 1, locationPoint: 1, taskPoint: 0,
+      requiresLocation: true, requiresTask: false, isAuto: true, locationLabel: profile.workAddress || "勤務先" },
+    { ...BASE, id: "leave_work", label: "退勤", emoji: "👋",
+      scheduledTime: "18:00", timePoint: 1, locationPoint: 0, taskPoint: 0,
+      requiresLocation: false, requiresTask: false, isAuto: true },
   ];
+
+  // タスク選択型イベント（表示）
+  const defaultContent = "notebook";
+  const { taskPt: mTaskPt, relaxPt: mRelaxPt } = getContentPts(defaultContent);
+  const taskEvents: DailyEvent[] = [
+    { ...BASE, id: "morning_task", label: "出勤前タスク", emoji: "🌸",
+      scheduledTime: addMinutes(profile.wakeTime, 15),
+      timePoint: 0, locationPoint: 0, taskPoint: mTaskPt, relaxPoint: mRelaxPt,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: defaultContent, taskLabel: "NotebookLM" },
+    { ...BASE, id: "commute_task", label: "通勤中タスク", emoji: "🚆",
+      scheduledTime: addMinutes(profile.wakeTime, 80),
+      timePoint: 0, locationPoint: 1, taskPoint: mTaskPt, relaxPoint: mRelaxPt,
+      requiresLocation: true, requiresTask: true, isAuto: false,
+      selectedContent: defaultContent, locationLabel: "電車内", taskLabel: "NotebookLM" },
+    { ...BASE, id: "lunch_task", label: "お昔休みタスク", emoji: "☕",
+      scheduledTime: "12:00",
+      timePoint: 0, locationPoint: 0, taskPoint: 3, relaxPoint: 3,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "walk", taskLabel: "散歩" },
+    { ...BASE, id: "return_commute", label: "帰宅中タスク", emoji: "🎧",
+      scheduledTime: "18:15",
+      timePoint: 0, locationPoint: 1, taskPoint: mTaskPt, relaxPoint: mRelaxPt,
+      requiresLocation: true, requiresTask: true, isAuto: false,
+      selectedContent: defaultContent, locationLabel: "電車内", taskLabel: "NotebookLM" },
+    { ...BASE, id: "bedtime_detox", label: "就寡前デトックス", emoji: "🌙",
+      scheduledTime: profile.bedTime,
+      timePoint: 0, locationPoint: 0, taskPoint: 3, relaxPoint: 5,
+      requiresLocation: false, requiresTask: true, isAuto: false,
+      selectedContent: "detox", taskLabel: "デトックス" },
+  ];
+
+  return [...autoEvents, ...taskEvents].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
 }
 
 // ===================== 旧互換: ScoreBreakdown型 =====================
@@ -356,9 +284,9 @@ export function calcTimeBonus(scheduledTime: string, achievedAt: string | undefi
 }
 
 function calcScore(events: DailyEvent[]): { score: number; earned: number; total: number; bonusTotal: number } {
-  // 基本ポイント合計（最大13pt）
+  // 基本ポイント合計（時間+位置+タスク+リラックス）
   const total = events.reduce(
-    (s, e) => s + e.timePoint + e.locationPoint + e.taskPoint, 0
+    (s, e) => s + e.timePoint + e.locationPoint + e.taskPoint + (e.relaxPoint ?? 0), 0
   );
   // 基本達成ポイント
   const baseEarned = events.reduce(
@@ -366,7 +294,8 @@ function calcScore(events: DailyEvent[]): { score: number; earned: number; total
       s +
       (e.timeAchieved ? e.timePoint : 0) +
       (e.locationAchieved ? e.locationPoint : 0) +
-      (e.taskAchieved ? e.taskPoint : 0),
+      (e.taskAchieved ? e.taskPoint : 0) +
+      (e.relaxAchieved ? (e.relaxPoint ?? 0) : 0),
     0
   );
   // 時間精度ボーナス合計
@@ -375,7 +304,6 @@ function calcScore(events: DailyEvent[]): { score: number; earned: number; total
     0
   );
   const earned = baseEarned + bonusTotal;
-  // スコア = (基本達成 + ボーナス) / (基本最大 + 最大ボーナス) * 100
   // 最大ボーナスは「時間ポイントを持つイベント数 × 5」
   const maxBonus = events.filter(e => e.timePoint > 0).length * 5;
   const scoreTotal = total + maxBonus;
@@ -499,17 +427,15 @@ export function useScoreEngine() {
         if (e.id !== eventId) return e;
         const key = pointType === "time" ? "timeAchieved"
           : pointType === "location" ? "locationAchieved"
+          : pointType === "relax" ? "relaxAchieved"
           : "taskAchieved";
-        const newVal = !e[key];
+        const newVal = !e[key as keyof DailyEvent] as boolean;
         const newAchievedAt = newVal ? nowHHMM : e.achievedAt;
-        // 時間ポイントを達成したとき、またはトグルOFFのとき、ボーナスを計算
         let newTimeBonus = e.timeBonus ?? 0;
         if (pointType === "time") {
           if (newVal) {
-            // 達成時: 現在時刻と予定時刻の差でボーナス計算
             newTimeBonus = calcTimeBonus(e.scheduledTime, nowHHMM, now);
           } else {
-            // 取り消し時: ボーナスリセット
             newTimeBonus = 0;
           }
         }
@@ -518,6 +444,24 @@ export function useScoreEngine() {
           [key]: newVal,
           achievedAt: newAchievedAt,
           timeBonus: newTimeBonus,
+        };
+      })
+    );
+  }, []);
+
+  // タスクコンテンツ変更（ポイントも同時更新）
+  const updateEventContent = useCallback((eventId: string, contentId: string) => {
+    const c = TASK_CONTENTS.find(t => t.id === contentId);
+    if (!c) return;
+    setEvents(prev =>
+      prev.map(e => {
+        if (e.id !== eventId) return e;
+        return {
+          ...e,
+          selectedContent: contentId,
+          taskPoint: c.taskPt,
+          relaxPoint: c.relaxPt,
+          taskLabel: c.label,
         };
       })
     );
@@ -613,6 +557,7 @@ export function useScoreEngine() {
     events,
     setEvents,
     toggleEventPoint,
+    updateEventContent,
     score: effectiveScore,
     earnedPoints: earned,
     totalPoints: total,
