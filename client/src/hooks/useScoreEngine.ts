@@ -330,13 +330,35 @@ export function useScoreEngine() {
     try {
       const todayKey = getTodayKey();
       const s = localStorage.getItem(`lgm_events_${todayKey}`);
-      if (s) return JSON.parse(s);
       const prof = (() => {
         try {
           const ps = localStorage.getItem("lgm_profile_v2");
           return ps ? { ...DEFAULT_PROFILE, ...JSON.parse(ps) } : DEFAULT_PROFILE;
         } catch { return DEFAULT_PROFILE; }
       })();
+      if (s) {
+        const cached: DailyEvent[] = JSON.parse(s);
+        // isLocationフラグが欠けている古いキャッシュは再生成して達成状態を引き継ぐ
+        const hasOldFormat = cached.some(e => e.isLocation === undefined);
+        if (hasOldFormat) {
+          const fresh = buildDefaultEvents(prof);
+          return fresh.map(newEv => {
+            const old = cached.find(o => o.id === newEv.id);
+            if (!old) return newEv;
+            return {
+              ...newEv,
+              timeAchieved: old.timeAchieved,
+              locationAchieved: old.locationAchieved,
+              taskAchieved: old.taskAchieved,
+              relaxAchieved: old.relaxAchieved,
+              achievedAt: old.achievedAt,
+              timeBonus: old.timeBonus,
+              selectedContent: old.selectedContent ?? newEv.selectedContent,
+            };
+          });
+        }
+        return cached;
+      }
       return buildDefaultEvents(prof);
     } catch { return buildDefaultEvents(DEFAULT_PROFILE); }
   });
