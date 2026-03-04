@@ -33,6 +33,52 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 export type PointType = "time" | "location" | "task" | "relax";
 export type DayMode = "normal" | "holiday" | "business_trip" | "sick";
+export type UserType = "worker" | "student";
+
+// ユーザータイプ別ラベルマップ
+export const USER_TYPE_LABELS: Record<UserType, {
+  goToWork: string;      // 出勤 / 登校
+  leaveWork: string;     // 退勤 / 下校
+  workplace: string;     // 勤務先 / 学校
+  workStation: string;   // 勤務先最寄駅 / 学校最寄駅
+  commute: string;       // 通勤 / 通学
+  commuteTask: string;   // 通勤中タスク / 通学中タスク
+  returnTask: string;    // 帰宅中タスク / 帰宅中タスク
+  morningTask: string;   // 出勤前タスク / 登校前タスク
+  lunchTask: string;     // お昼休みタスク / 昼休みタスク
+  startTimeLabel: string; // 出社時間 / 登校時間
+  endTimeLabel: string;   // 退社時間 / 下校時間
+  lunchLabel: string;     // 昼休憩 / 昼休み
+}> = {
+  worker: {
+    goToWork: "出勤",
+    leaveWork: "退勤",
+    workplace: "勤務先",
+    workStation: "勤務先最寄駅",
+    commute: "通勤",
+    commuteTask: "通勤中タスク",
+    returnTask: "帰宅中タスク",
+    morningTask: "出勤前タスク",
+    lunchTask: "お昼休みタスク",
+    startTimeLabel: "出社時間",
+    endTimeLabel: "退社時間",
+    lunchLabel: "昼休憩",
+  },
+  student: {
+    goToWork: "登校",
+    leaveWork: "下校",
+    workplace: "学校",
+    workStation: "学校最寄駅",
+    commute: "通学",
+    commuteTask: "通学中タスク",
+    returnTask: "帰宅中タスク",
+    morningTask: "登校前タスク",
+    lunchTask: "昼休みタスク",
+    startTimeLabel: "登校時間",
+    endTimeLabel: "下校時間",
+    lunchLabel: "昼休み",
+  },
+};
 export type TaskMode = "easy" | "half" | "hard";
 
 // タスクモード別に表示するイベントIDセット
@@ -102,15 +148,16 @@ export interface DailyEvent {
 
 export interface UserProfile {
   name: string;
+  userType: UserType;          // worker=会社員 / student=学生
   wakeTime: string;            // 起床時間 "HH:MM"
   alarmEnabled: boolean;
   homeStation: string;         // 自宅最寄駅
-  workStation: string;         // 勤務先最寄駅
-  workAddress: string;         // 勤務先住所
-  startTime: string;           // 出社時間 "HH:MM"
+  workStation: string;         // 勤務先最寄駅 / 学校最寄駅
+  workAddress: string;         // 勤務先住所 / 学校住所
+  startTime: string;           // 出社/登校時間 "HH:MM"
   lunchTime: string;           // 昼休憩開始 "HH:MM"
   lunchDuration: number;       // 昼休憩時間（分）
-  endTime: string;             // 退社時間 "HH:MM"
+  endTime: string;             // 退社/下校時間 "HH:MM"
   bedTime: string;             // 就寝時間 "HH:MM"
   offDays: number[];           // 0=日,1=月,...,6=土
   learningContent: string;
@@ -143,6 +190,7 @@ export interface ScheduleItem {
 
 const DEFAULT_PROFILE: UserProfile = {
   name: "",
+  userType: "worker",
   wakeTime: "06:30",
   alarmEnabled: true,
   homeStation: "",
@@ -175,23 +223,26 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
     relaxPoint: 0,
   };
 
+  // ユーザータイプ別ラベル
+  const lbl = USER_TYPE_LABELS[profile.userType || "worker"];
+
   // プロフィール時刻から各イベント時刻を計算
   const startTime  = profile.startTime  || "09:00";
   const lunchTime  = profile.lunchTime  || "12:00";
   const endTime    = profile.endTime    || "18:00";
 
-  // 家を出る時間 = 出社時間 - 60分
+  // 家を出る時間 = 出社/登校時間 - 60分
   const leaveHomeTime   = addMinutes(startTime, -60);
-  // 自宅最寄駅 = 出社時間 - 45分
+  // 自宅最寄駅 = 出社/登校時間 - 45分
   const homeStationTime = addMinutes(startTime, -45);
-  // 勤務先最寄駅 = 出社時間 - 10分
+  // 勤務先/学校最寄駅 = 出社/登校時間 - 10分
   const workStationTime = addMinutes(startTime, -10);
-  // 勤務先到着 = 出社時間 - 5分
+  // 勤務先/学校到着 = 出社/登校時間 - 5分
   const arriveWorkTime  = addMinutes(startTime, -5);
-  // 帰宅中タスク = 退社時間 + 10分
+  // 帰宅中タスク = 退社/下校時間 + 10分
   const returnCommuteTime = addMinutes(endTime, 10);
 
-  // 自動取得イベント（非表示）- 移動系 計30pt
+  // 自動取得イベント（非表示） - 移動系 記30pt
   const autoEvents: DailyEvent[] = [
     { ...BASE, id: "wake", label: "起床", emoji: "🌅",
       scheduledTime: profile.wakeTime, timePoint: 5, locationPoint: 0, taskPoint: 0,
@@ -199,39 +250,39 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
     { ...BASE, id: "leave_home", label: "家を出る", emoji: "🚶",
       scheduledTime: leaveHomeTime, timePoint: 0, locationPoint: 5, taskPoint: 0,
       requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: "自宅周辺" },
-    { ...BASE, id: "home_station", label: "最寄駅到着", emoji: "🙆",
+    { ...BASE, id: "home_station", label: "最寄駅到着", emoji: "🙌",
       scheduledTime: homeStationTime, timePoint: 0, locationPoint: 5, taskPoint: 0,
       requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.homeStation || "最寄駅" },
-    { ...BASE, id: "work_station", label: "勤務先最寄駅到着", emoji: "🏙️",
+    { ...BASE, id: "work_station", label: `${lbl.workStation}到着`, emoji: "🏙️",
       scheduledTime: workStationTime, timePoint: 0, locationPoint: 5, taskPoint: 0,
-      requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.workStation || "勤務先最寄駅" },
-    { ...BASE, id: "arrive_work", label: "勤務先到着", emoji: "🏢",
+      requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.workStation || lbl.workStation },
+    { ...BASE, id: "arrive_work", label: `${lbl.workplace}到着`, emoji: profile.userType === "student" ? "🏫" : "🏢",
       scheduledTime: arriveWorkTime, timePoint: 5, locationPoint: 5, taskPoint: 0,
-      requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.workAddress || "勤務先" },
-    { ...BASE, id: "leave_work", label: "退勤", emoji: "👋",
+      requiresLocation: true, requiresTask: false, isAuto: true, isLocation: true, locationLabel: profile.workAddress || lbl.workplace },
+    { ...BASE, id: "leave_work", label: lbl.leaveWork, emoji: "👋",
       scheduledTime: endTime, timePoint: 5, locationPoint: 0, taskPoint: 0,
       requiresLocation: false, requiresTask: false, isAuto: true, isLocation: true },
   ];
 
-  // タスク選択型イベント（表示）- タスク系 各10pt
+  // タスク選択型イベント（表示） - タスク系 各10pt
   const defaultContent = "notebook";
   const taskEvents: DailyEvent[] = [
-    { ...BASE, id: "morning_task", label: "出勤前タスク", emoji: "🌸",
+    { ...BASE, id: "morning_task", label: lbl.morningTask, emoji: "🌸",
       scheduledTime: addMinutes(profile.wakeTime, 15),
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: defaultContent, taskLabel: "NotebookLM" },
-    { ...BASE, id: "commute_task", label: "通勤中タスク", emoji: "🙆",
+    { ...BASE, id: "commute_task", label: lbl.commuteTask, emoji: "🙌",
       scheduledTime: addMinutes(leaveHomeTime, 15),
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: defaultContent, locationLabel: "電車内", taskLabel: "NotebookLM" },
-    { ...BASE, id: "lunch_task", label: "お昼休みタスク", emoji: "☕",
+    { ...BASE, id: "lunch_task", label: lbl.lunchTask, emoji: "☕",
       scheduledTime: lunchTime,
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: "walk", taskLabel: "散歩" },
-    { ...BASE, id: "return_commute", label: "帰宅中タスク", emoji: "🎧",
+    { ...BASE, id: "return_commute", label: lbl.returnTask, emoji: "🎧",
       scheduledTime: returnCommuteTime,
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,

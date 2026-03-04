@@ -11,7 +11,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import type { UserProfile, TaskMode } from "@/hooks/useScoreEngine";
+import type { UserProfile, TaskMode, UserType } from "@/hooks/useScoreEngine";
+import { USER_TYPE_LABELS } from "@/hooks/useScoreEngine";
 
 const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -64,6 +65,7 @@ export default function SetupScreen({ onComplete }: Props) {
   const totalSteps = 4;
 
   const [taskMode, setTaskMode] = useState<TaskMode>("hard");
+  const [userType, setUserType] = useState<UserType>("worker");
   const [name, setName] = useState("");
   const [wakeTime, setWakeTime] = useState("06:30");
   const [bedTime, setBedTime] = useState("22:30");
@@ -100,6 +102,7 @@ export default function SetupScreen({ onComplete }: Props) {
       onComplete(
         {
           name: name.trim(),
+          userType,
           wakeTime,
           bedTime,
           homeStation,
@@ -147,10 +150,11 @@ export default function SetupScreen({ onComplete }: Props) {
     fontSize: 16,
   };
 
+  const lbl = USER_TYPE_LABELS[userType];
   const stepTitles = [
     { emoji: "🎮", title: "タスクモードを選んでください", sub: "後から変更できます" },
-    { emoji: "🌸", title: "あなたのことを教えてください", sub: "名前と起床・就寝時間" },
-    { emoji: "🚉", title: "通勤設定", sub: "駅名と出退社時間" },
+    { emoji: "🌸", title: "あなたのことを教えてください", sub: "名前・タイプ・起床・就寝時間" },
+    { emoji: "🚉", title: `${lbl.commute}設定`, sub: `駅名と${lbl.startTimeLabel}・${lbl.endTimeLabel}` },
     { emoji: "🌿", title: "休日設定", sub: "休みの曜日を選んでください" },
   ];
 
@@ -262,9 +266,49 @@ export default function SetupScreen({ onComplete }: Props) {
           </div>
         )}
 
-        {/* ─── STEP 1: 名前・起床・就寝 ─── */}
+        {/* ─── STEP 1: 名前・タイプ・起床・就寝 ─── */}
         {step === 1 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {/* ユーザータイプ選択 */}
+            <div>
+              <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 8 }}>
+                あなたは？
+              </label>
+              <div style={{ display: "flex", gap: 10 }}>
+                {(["worker", "student"] as UserType[]).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setUserType(type)}
+                    style={{
+                      flex: 1,
+                      padding: "14px 10px",
+                      borderRadius: 14,
+                      border: userType === type
+                        ? "2px solid #c084f5"
+                        : "1.5px solid rgba(0,0,0,0.08)",
+                      background: userType === type
+                        ? "linear-gradient(135deg, rgba(244,114,182,0.12), rgba(192,132,245,0.12))"
+                        : "rgba(255,255,255,0.85)",
+                      cursor: "pointer",
+                      textAlign: "center" as const,
+                      transition: "all 0.2s",
+                      boxShadow: userType === type ? "0 4px 12px rgba(192,132,245,0.25)" : "0 2px 6px rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <div style={{ fontSize: 28, marginBottom: 4 }}>{type === "worker" ? "💼" : "🎓"}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: userType === type ? "#7c3aed" : "#374151", fontFamily: "'Shippori Mincho', serif" }}>
+                      {type === "worker" ? "会社員" : "学生"}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>
+                      {type === "worker" ? "出勤・通勤・退勤" : "登校・通学・下校"}
+                    </div>
+                    {userType === type && (
+                      <div style={{ marginTop: 4, fontSize: 10, background: "#c084f5", color: "#fff", borderRadius: 6, padding: "1px 8px", display: "inline-block" }}>選択中</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 6 }}>
                 お名前（愛称でも可）
@@ -320,11 +364,11 @@ export default function SetupScreen({ onComplete }: Props) {
             </div>
             <div>
               <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                勤務先最寄駅 🏢
+                {lbl.workStation} {userType === "student" ? "🏫" : "🏢"}
               </label>
               <input
                 type="text"
-                placeholder="例: 高崎駅"
+                placeholder={`例: ${userType === "student" ? "学校最寄駅" : "高崎駅"}`}
                 value={workStation}
                 onChange={e => setWorkStation(e.target.value)}
                 style={inputStyle}
@@ -344,7 +388,7 @@ export default function SetupScreen({ onComplete }: Props) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>出社時間 💼</label>
+                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>{lbl.startTimeLabel} {userType === "student" ? "🎓" : "💼"}</label>
                 <input
                   type="time"
                   value={startTime}
@@ -353,7 +397,7 @@ export default function SetupScreen({ onComplete }: Props) {
                 />
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>昼休憩開始 ☕</label>
+                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>{lbl.lunchLabel}開始 ☕</label>
                 <input
                   type="time"
                   value={lunchTime}
@@ -388,7 +432,7 @@ export default function SetupScreen({ onComplete }: Props) {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>退社時間 👋</label>
+                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>{lbl.endTimeLabel} 👋</label>
                 <input
                   type="time"
                   value={endTime}

@@ -12,7 +12,8 @@
  */
 
 import { useState } from "react";
-import type { UserProfile, DayMode, TaskMode } from "@/hooks/useScoreEngine";
+import type { UserProfile, DayMode, TaskMode, UserType } from "@/hooks/useScoreEngine";
+import { USER_TYPE_LABELS } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
 
 interface Props {
@@ -156,6 +157,46 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
         </div>
       </SectionCard>
 
+      {/* ユーザータイプ選択 */}
+      <SectionCard title="ユーザータイプ" emoji="👤">
+        <p style={{ fontSize: 11, color: "#9ca3af", marginBottom: 10, fontFamily: "'Noto Sans JP', sans-serif" }}>
+          表示される言葉が切り替わります
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          {(["worker", "student"] as UserType[]).map(type => (
+            <button
+              key={type}
+              onClick={() => update("userType", type)}
+              style={{
+                flex: 1,
+                padding: "14px 10px",
+                borderRadius: 14,
+                border: local.userType === type
+                  ? "2px solid #c084f5"
+                  : "1.5px solid rgba(0,0,0,0.08)",
+                background: local.userType === type
+                  ? "linear-gradient(135deg, rgba(244,114,182,0.12), rgba(192,132,245,0.12))"
+                  : "rgba(255,255,255,0.7)",
+                cursor: "pointer",
+                textAlign: "center" as const,
+                transition: "all 0.2s",
+              }}
+            >
+              <div style={{ fontSize: 26, marginBottom: 4 }}>{type === "worker" ? "💼" : "🎓"}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: local.userType === type ? "#7c3aed" : "#374151", fontFamily: "'Noto Sans JP', sans-serif" }}>
+                {type === "worker" ? "会社員" : "学生"}
+              </div>
+              <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2, fontFamily: "'Noto Sans JP', sans-serif" }}>
+                {type === "worker" ? "出勤・通勤・退勤" : "登校・通学・下校"}
+              </div>
+              {local.userType === type && (
+                <div style={{ marginTop: 4, fontSize: 10, background: "#c084f5", color: "#fff", borderRadius: 6, padding: "1px 8px", display: "inline-block" }}>選択中</div>
+              )}
+            </button>
+          ))}
+        </div>
+      </SectionCard>
+
       {/* 基本プロフィール */}
       <SectionCard title="基本プロフィール" emoji="🌸">
         <FieldRow label="名前（愛称でも可）">
@@ -222,8 +263,8 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
         </FieldRow>
       </SectionCard>
 
-      {/* 通勤設定 */}
-      <SectionCard title="通勤設定" emoji="🚉">
+      {/* 通勤/通学設定 */}
+      <SectionCard title={`${USER_TYPE_LABELS[local.userType || "worker"].commute}設定`} emoji="🚉">
         <FieldRow label="自宅最寄駅">
           <div style={{ display: "flex", gap: 6 }}>
             <input
@@ -254,13 +295,13 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
             </button>
           </div>
         </FieldRow>
-        <FieldRow label="勤務先最寄駅">
+        <FieldRow label={`${USER_TYPE_LABELS[local.userType || "worker"].workStation}`}>
           <div style={{ display: "flex", gap: 6 }}>
             <input
               type="text"
               value={local.workStation}
               onChange={e => update("workStation", e.target.value)}
-              placeholder="例: 高崎駅"
+              placeholder={`例: ${local.userType === "student" ? "学校最寄駅" : "高崎駅"}`}
               style={{ ...inputStyle, flex: 1 }}
             />
             <button
@@ -284,12 +325,12 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
             </button>
           </div>
         </FieldRow>
-        <FieldRow label="勤務先（住所・名称）">
+        <FieldRow label={`${USER_TYPE_LABELS[local.userType || "worker"].workplace}（住所・名称）`}>
           <input
             type="text"
             value={local.workAddress}
             onChange={e => update("workAddress", e.target.value)}
-            placeholder="例: ○○株式会社"
+            placeholder={`例: ${local.userType === "student" ? "○○中学校" : "○○株式会社"}`}
             style={inputStyle}
           />
         </FieldRow>
