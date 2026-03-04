@@ -3,6 +3,7 @@
  * Design: Pastel Kawaii Life Manager
  * Soft half-circle gauge with floral decoration image overlay
  * Score 0-100: rose(0-40) → lavender(40-70) → mint(70-100)
+ * Score 100+: ゴールド + 針が右端で震えるアニメーション
  */
 
 import { useEffect, useRef, useCallback } from "react";
@@ -23,8 +24,8 @@ function scoreToColor(score: number): { main: string; light: string; hex: string
   return { main: "oklch(0.72 0.16 355)", light: "oklch(0.93 0.06 355)", hex: "#f472b6" };
 }
 
-// スコア0 → 左端（π）、スコア100 → 右端（2π=0）
-// 100pt超えは右端（2π）に固定（針はそれ以上動かない）
+// スコア0 → 左端（π）、スコア100 → 右端（2π）
+// 100pt超えは右端（2π）に固定（針はそれ以上動かない＝震えで表現）
 function scoreToAngle(score: number): number {
   return Math.PI + (Math.min(score, 100) / 100) * Math.PI;
 }
@@ -39,9 +40,11 @@ export default function GaugeMeter({
 }: GaugeMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  const currentAngleRef = useRef<number>(scoreToAngle(0)); // 初期位置: スコア0=左端
+  const shakeAnimRef = useRef<number>(0);
+  const currentAngleRef = useRef<number>(scoreToAngle(0));
   const targetAngleRef = useRef<number>(scoreToAngle(score));
-
+  const shakePhaseRef = useRef<number>(0);  // 震えの位相
+  const isOver100Ref = useRef<boolean>(false);
 
   const draw = useCallback((angle: number, currentScore: number, dispEarned?: number, dispTotal?: number) => {
     const canvas = canvasRef.current;
@@ -63,6 +66,7 @@ export default function GaugeMeter({
     ctx.scale(dpr, dpr);
 
     const colors = scoreToColor(currentScore);
+    const isOver100 = currentScore > 100;
 
     // === Background track (soft) ===
     ctx.beginPath();
@@ -86,11 +90,6 @@ export default function GaugeMeter({
     }
 
     // === Active arc ===
-    // アクティブアーク：左端(π)からスコア分だけ時計回りに伸びる（100pt超えは全体を塗る）
-    const clampedScore = Math.min(currentScore, 100);
-    const activeAngle = Math.PI + (clampedScore / 100) * Math.PI;
-    const isOver100 = currentScore > 100;
-
     if (isOver100) {
       // 100超え：全弧をゴールドグラデーションで塗る
       const goldGrad = ctx.createLinearGradient(cx - outerR, cy, cx + outerR, cy);
@@ -103,18 +102,21 @@ export default function GaugeMeter({
       ctx.strokeStyle = goldGrad;
       ctx.lineCap = "round";
       ctx.stroke();
-      // ゴールドグロー
+      // ゴールドグロー（脈動感）
+      const glowAlpha = 0.15 + 0.12 * Math.sin(shakePhaseRef.current * 3);
       ctx.beginPath();
       ctx.arc(cx, cy, outerR - trackW / 2, Math.PI, Math.PI * 2);
-      ctx.lineWidth = trackW * 0.7;
-      ctx.strokeStyle = "rgba(245,158,11,0.25)";
+      ctx.lineWidth = trackW * 0.8;
+      ctx.strokeStyle = `rgba(245,158,11,${glowAlpha})`;
       ctx.stroke();
     } else {
       // 通常：rose → lavender → mint グラデーション
+      const clampedScore = Math.min(currentScore, 100);
+      const activeAngle = Math.PI + (clampedScore / 100) * Math.PI;
       const grad = ctx.createLinearGradient(cx - outerR, cy, cx + outerR, cy);
-      grad.addColorStop(0, "#f9a8d4");   // rose
-      grad.addColorStop(0.5, "#c084f5"); // lavender
-      grad.addColorStop(1, "#6ee7b7");   // mint
+      grad.addColorStop(0, "#f9a8d4");
+      grad.addColorStop(0.5, "#c084f5");
+      grad.addColorStop(1, "#6ee7b7");
 
       ctx.beginPath();
       ctx.arc(cx, cy, outerR - trackW / 2, Math.PI, activeAngle);
@@ -123,7 +125,6 @@ export default function GaugeMeter({
       ctx.lineCap = "round";
       ctx.stroke();
 
-      // Soft glow on active arc
       ctx.beginPath();
       ctx.arc(cx, cy, outerR - trackW / 2, Math.PI, activeAngle);
       ctx.lineWidth = trackW * 0.5;
@@ -159,18 +160,24 @@ export default function GaugeMeter({
     }
 
     // === Needle ===
-    const needleR = outerR * 0.88;
-    const nx = cx + Math.cos(angle) * needleR;
-    const ny = cy + Math.sin(angle) * needleR;
+    // 100pt超えの場合、angleに震えオフセットを加算
+    const needleAngle = isOver100
+      ? angle + Math.sin(shakePhaseRef.current * 18) * 0.045  // 高速で細かく震える
+        + Math.sin(shakePhaseRef.current * 7) * 0.02           // 低周波の揺れも重ねる
+      : angle;
 
-    // Needle shadow (soft)
-    ctx.shadowColor = colors.hex + "60";
-    ctx.shadowBlur = 8;
+    const needleR = outerR * 0.88;
+    const nx = cx + Math.cos(needleAngle) * needleR;
+    const ny = cy + Math.sin(needleAngle) * needleR;
+
+    // Needle shadow（超過時は金色の影）
+    ctx.shadowColor = isOver100 ? "#f59e0b60" : colors.hex + "60";
+    ctx.shadowBlur = isOver100 ? 14 : 8;
 
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(nx, ny);
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = isOver100 ? 4 : 3.5;
     ctx.strokeStyle = colors.hex;
     ctx.lineCap = "round";
     ctx.stroke();
@@ -196,10 +203,11 @@ export default function GaugeMeter({
     ctx.fillStyle = colors.hex;
     ctx.fill();
 
-    // === Score number (獲得ポイント表示) ===
-    const showEarned = dispEarned !== undefined;
-    const mainNum = showEarned ? Math.round(dispEarned!) : Math.round(currentScore);
-    const subText = showEarned && dispTotal !== undefined ? `/${dispTotal}pt` : "";
+    // === Score number（実際の獲得ポイントをそのまま表示） ===
+    // dispEarned が渡されていれば使う、なければ earnedPoints を使う
+    const actualEarned = dispEarned !== undefined ? dispEarned : earnedPoints;
+    const mainNum = actualEarned !== undefined ? Math.round(actualEarned) : Math.round(currentScore);
+    const subText = actualEarned !== undefined && dispTotal !== undefined ? `/${dispTotal}pt` : "";
 
     // メインの数字（大きく）
     ctx.font = `700 ${w * 0.17}px 'Shippori Mincho', serif`;
@@ -207,7 +215,7 @@ export default function GaugeMeter({
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = colors.hex + "40";
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = isOver100 ? 18 : 12;
     ctx.fillText(String(mainNum), cx, cy - outerR * 0.12);
     ctx.shadowBlur = 0;
 
@@ -217,14 +225,15 @@ export default function GaugeMeter({
       ctx.fillStyle = "rgba(0,0,0,0.35)";
       ctx.fillText(subText, cx, cy + outerR * 0.14);
     } else {
-      // Label
       ctx.font = `400 ${w * 0.042}px 'Noto Sans JP', sans-serif`;
       ctx.fillStyle = "rgba(0,0,0,0.35)";
       ctx.fillText(label, cx, cy + outerR * 0.14);
     }
 
     // 達成率 % (小さく)
-    const pct = showEarned && dispTotal ? Math.round((dispEarned! / dispTotal) * 100) : Math.round(currentScore);
+    const pct = actualEarned !== undefined && dispTotal
+      ? Math.round((actualEarned / dispTotal) * 100)
+      : Math.round(currentScore);
     const isOver = pct > 100;
     ctx.font = `${isOver ? 600 : 500} ${w * 0.036}px 'Noto Sans JP', sans-serif`;
     ctx.fillStyle = isOver ? "#f59e0b" : colors.hex + "cc";
@@ -233,35 +242,74 @@ export default function GaugeMeter({
     ctx.restore();
   }, [label, earnedPoints, totalPoints]);
 
+  // 通常の到達アニメーション
   useEffect(() => {
     targetAngleRef.current = scoreToAngle(score);
+    isOver100Ref.current = score > 100;
+
     if (!animated) {
       currentAngleRef.current = targetAngleRef.current;
-      draw(currentAngleRef.current, score);
+      draw(currentAngleRef.current, score, earnedPoints, totalPoints);
       return;
     }
+
+    // 震えアニメーションを停止してから通常アニメ開始
+    cancelAnimationFrame(shakeAnimRef.current);
+
     const animate = () => {
       const current = currentAngleRef.current;
       const target = targetAngleRef.current;
       const diff = target - current;
+
       if (Math.abs(diff) < 0.001) {
         currentAngleRef.current = target;
-        draw(target, score, earnedPoints, totalPoints);
+        // 100pt超えなら震えアニメーションを開始
+        if (isOver100Ref.current) {
+          startShakeAnimation();
+        } else {
+          draw(target, score, earnedPoints, totalPoints);
+        }
         return;
       }
+
       currentAngleRef.current = current + diff * 0.07;
       const displayScore = ((currentAngleRef.current - Math.PI) / Math.PI) * 100;
-      // アニメーション中の獲得ポイントも補間
+      // アニメーション中は earnedPoints を補間して表示
       const dispEarned = earnedPoints !== undefined && totalPoints !== undefined
-        ? (displayScore / 100) * earnedPoints
+        ? (Math.min(displayScore, 100) / 100) * earnedPoints
         : undefined;
       draw(currentAngleRef.current, Math.max(0, Math.min(100, displayScore)), dispEarned, totalPoints);
       animRef.current = requestAnimationFrame(animate);
     };
+
     cancelAnimationFrame(animRef.current);
     animRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animRef.current);
-  }, [score, animated, draw]);
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      cancelAnimationFrame(shakeAnimRef.current);
+    };
+  }, [score, animated, draw, earnedPoints, totalPoints]);
+
+  // 震えアニメーション（100pt超え時に右端で継続）
+  const startShakeAnimation = useCallback(() => {
+    const rightEdge = Math.PI * 2;  // 右端の角度
+
+    const shakeLoop = () => {
+      shakePhaseRef.current += 0.04;  // 位相を進める
+      draw(rightEdge, score, earnedPoints, totalPoints);
+      shakeAnimRef.current = requestAnimationFrame(shakeLoop);
+    };
+
+    cancelAnimationFrame(shakeAnimRef.current);
+    shakeAnimRef.current = requestAnimationFrame(shakeLoop);
+  }, [draw, score, earnedPoints, totalPoints]);
+
+  // score が 100 以下に戻ったら震えを停止
+  useEffect(() => {
+    if (score <= 100) {
+      cancelAnimationFrame(shakeAnimRef.current);
+    }
+  }, [score]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -278,7 +326,7 @@ export default function GaugeMeter({
     <canvas
       ref={canvasRef}
       style={{ display: "block", margin: "0 auto" }}
-      aria-label={`${label}: ${Math.round(score)}点`}
+      aria-label={`${label}: ${earnedPoints !== undefined ? earnedPoints : Math.round(score)}点`}
     />
   );
 }
