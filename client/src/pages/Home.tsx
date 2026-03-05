@@ -408,7 +408,7 @@ export default function Home() {
             style={{ borderTop: `1px solid ${scoreScheme.border}30`, gap: 4 }}
           >
             <SmallGauge
-              label="時間ポイント"
+              label="時間pt"
               emoji="⏰"
               earned={timePoints}
               max={timePointsMax}
@@ -417,7 +417,7 @@ export default function Home() {
             />
             <div style={{ width: 1, background: "rgba(0,0,0,0.07)", margin: "8px 0" }} />
             <SmallGauge
-              label="勉強ポイント"
+              label="勉強pt"
               emoji="📚"
               earned={studyPoints}
               max={studyPointsMax}
@@ -426,7 +426,7 @@ export default function Home() {
             />
             <div style={{ width: 1, background: "rgba(0,0,0,0.07)", margin: "8px 0" }} />
             <SmallGauge
-              label="リラックスポイント"
+              label="リラックスpt"
               emoji="🌿"
               earned={relaxPoints}
               max={relaxPointsMax}
@@ -444,7 +444,7 @@ export default function Home() {
         {activeTab === "today" && (
           <div
             className="flex rounded-2xl overflow-hidden mb-1"
-            style={{ background: "rgba(255,255,255,0.72)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: 4, gap: 4 }}
+            style={{ background: "rgba(255,255,255,0.72)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: 3, gap: 3 }}
           >
             {([
               { value: "normal" as DayMode, emoji: "💼", label: "通常", color: "#c084f5" },
@@ -465,8 +465,8 @@ export default function Home() {
                   }}
                   style={{
                     flex: 1,
-                    padding: "8px 4px",
-                    borderRadius: 14,
+                    padding: "5px 4px",
+                    borderRadius: 12,
                     border: "none",
                     background: isActive
                       ? `linear-gradient(135deg, ${opt.color}22, ${opt.color}11)`
@@ -474,20 +474,22 @@ export default function Home() {
                     cursor: "pointer",
                     transition: "all 0.2s",
                     display: "flex",
-                    flexDirection: "column",
+                    flexDirection: "row",
                     alignItems: "center",
-                    gap: 2,
+                    justifyContent: "center",
+                    gap: 4,
                     outline: isActive ? `2px solid ${opt.color}60` : "none",
                   }}
                 >
-                  <span style={{ fontSize: 18 }}>{opt.emoji}</span>
+                  <span style={{ fontSize: 14, lineHeight: 1 }}>{opt.value === "business_trip" && dayMode === "sick" ? "🤒" : opt.emoji}</span>
                   <span style={{
                     fontSize: 11,
                     fontWeight: isActive ? 700 : 400,
                     color: isActive ? opt.color : "rgba(0,0,0,0.35)",
                     fontFamily: "'Noto Sans JP', sans-serif",
+                    whiteSpace: "nowrap",
                   }}>
-                    {opt.value === "business_trip" && dayMode === "sick" ? "🤒 病欠" : opt.label}
+                    {opt.value === "business_trip" && dayMode === "sick" ? "病欠" : opt.label}
                   </span>
                 </button>
               );

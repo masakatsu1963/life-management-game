@@ -204,40 +204,23 @@ export default function GaugeMeter({
     ctx.fill();
 
     // === Score number（実際の獲得ポイントをそのまま表示） ===
-    // dispEarned が渡されていれば使う、なければ earnedPoints を使う
     const actualEarned = dispEarned !== undefined ? dispEarned : earnedPoints;
     const mainNum = actualEarned !== undefined ? Math.round(actualEarned) : Math.round(currentScore);
-    const subText = actualEarned !== undefined && dispTotal !== undefined ? `/${dispTotal}pt` : "";
 
-    // メインの数字（大きく）
+    // メインの数字（大きく・上方に移動）
     ctx.font = `700 ${w * 0.17}px 'Shippori Mincho', serif`;
     ctx.fillStyle = colors.hex;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = colors.hex + "40";
     ctx.shadowBlur = isOver100 ? 18 : 12;
-    ctx.fillText(String(mainNum), cx, cy - outerR * 0.12);
+    ctx.fillText(String(mainNum), cx, cy - outerR * 0.30);
     ctx.shadowBlur = 0;
 
-    // サブテキスト（/100pt など）
-    if (subText) {
-      ctx.font = `400 ${w * 0.042}px 'Noto Sans JP', sans-serif`;
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.fillText(subText, cx, cy + outerR * 0.14);
-    } else {
-      ctx.font = `400 ${w * 0.042}px 'Noto Sans JP', sans-serif`;
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.fillText(label, cx, cy + outerR * 0.14);
-    }
-
-    // 達成率 % (小さく)
-    const pct = actualEarned !== undefined && dispTotal
-      ? Math.round((actualEarned / dispTotal) * 100)
-      : Math.round(currentScore);
-    const isOver = pct > 100;
-    ctx.font = `${isOver ? 600 : 500} ${w * 0.036}px 'Noto Sans JP', sans-serif`;
-    ctx.fillStyle = isOver ? "#f59e0b" : colors.hex + "cc";
-    ctx.fillText(isOver ? `⭐ ${pct}%` : `${pct}%`, cx, cy + outerR * 0.30);
+    // "pt" ラベル（数字の直下）
+    ctx.font = `500 ${w * 0.05}px 'Noto Sans JP', sans-serif`;
+    ctx.fillStyle = colors.hex + "cc";
+    ctx.fillText("pt", cx, cy - outerR * 0.10);
 
     ctx.restore();
   }, [label, earnedPoints, totalPoints]);

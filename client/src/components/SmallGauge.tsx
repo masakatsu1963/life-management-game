@@ -125,20 +125,19 @@ export default function SmallGauge({ label, emoji, earned, max, color, bgColor }
         </text>
       </svg>
 
-      {/* ラベル */}
+      {/* ラベル（1行: ⏰時間pt） */}
       <div
         style={{
-          fontSize: 10,
+          fontSize: 11,
           fontFamily: "'Noto Sans JP', sans-serif",
           color: "#6b7280",
           textAlign: "center",
-          marginTop: -4,
-          lineHeight: 1.3,
+          marginTop: 4,
+          lineHeight: 1.4,
+          whiteSpace: "nowrap",
         }}
       >
-        <span style={{ fontSize: 13 }}>{emoji}</span>
-        <br />
-        {label}
+        {emoji}{label}
       </div>
     </div>
   );
