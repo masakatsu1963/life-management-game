@@ -21,6 +21,7 @@ import LocationLog from "@/components/LocationLog";
 import IdealScheduleTab from "@/components/IdealScheduleTab";
 import HelpPage from "@/components/HelpPage";
 import SetupScreen from "@/components/SetupScreen";
+import SmallGauge from "@/components/SmallGauge";
 import { useScoreEngine, calcEarlyRiseBonus, getEarlyRiseLabel } from "@/hooks/useScoreEngine";
 import type { DayMode } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
@@ -49,6 +50,12 @@ export default function Home() {
     weeklyLogs,
     gameState,
     useCheat,
+    timePoints,
+    timePointsMax,
+    studyPoints,
+    studyPointsMax,
+    relaxPoints,
+    relaxPointsMax,
   } = useScoreEngine();
 
   const [activeTab, setActiveTab] = useState<FootTab>("today");
@@ -374,59 +381,58 @@ export default function Home() {
             >
               {scoreScheme.label}
             </span>
-            <span className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontFamily: "'Noto Sans JP', sans-serif" }}>
-              最大{totalPoints}pt
-            </span>
+            {/* チートポイント（右上） */}
+            <div className="flex items-center gap-1">
+              <span className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontFamily: "'Noto Sans JP', sans-serif" }}>
+                最大{totalPoints}pt
+              </span>
+              <div
+                className="flex items-center gap-1 px-2 py-1 rounded-full"
+                style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.25)" }}
+              >
+                <span style={{ fontSize: 12 }}>💎</span>
+                <span className="text-xs font-bold" style={{ color: "#a855f7", fontFamily: "'Shippori Mincho', serif" }}>
+                  {gameState.cheatPoints}CP
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="px-2 pt-1 pb-2">
             <GaugeMeter score={score} size={340} animated earnedPoints={earnedPoints} totalPoints={totalPoints} />
           </div>
 
-          {/* ポイント内訳バー */}
+          {/* 3サブメーター（時間・勉強・リラックス） */}
           <div
-            className="flex items-center justify-around px-4 py-3"
-            style={{ borderTop: `1px solid ${scoreScheme.border}30` }}
+            className="flex items-stretch px-3 pb-3 pt-1"
+            style={{ borderTop: `1px solid ${scoreScheme.border}30`, gap: 4 }}
           >
-            {[
-              {
-                icon: "⏰",
-                value: `${events.filter(e => e.timeAchieved).length}/${events.filter(e => e.timePoint > 0).length}`,
-                label: "時間",
-                color: "#f59e0b",
-              },
-              {
-                icon: "📍",
-                value: `${events.filter(e => e.locationAchieved).length}/${events.filter(e => e.locationPoint > 0).length}`,
-                label: "位置",
-                color: "#60a5fa",
-              },
-              {
-                icon: "📚",
-                value: `${events.filter(e => e.taskAchieved).length}/${events.filter(e => e.taskPoint > 0).length}`,
-                label: "タスク",
-                color: "#a78bfa",
-              },
-              {
-                icon: "💎",
-                value: `${gameState.cheatPoints}CP`,
-                label: "チート",
-                color: "#a855f7",
-              },
-            ].map((item, i, arr) => (
-              <div key={item.label} className="flex items-center">
-                <div className="flex flex-col items-center gap-0.5">
-                  <span className="text-base">{item.icon}</span>
-                  <span className="text-xs font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: item.color }}>
-                    {item.value}
-                  </span>
-                  <span className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontSize: "0.58rem" }}>
-                    {item.label}
-                  </span>
-                </div>
-                {i < arr.length - 1 && <div className="w-px h-8 mx-3" style={{ background: "rgba(0,0,0,0.07)" }} />}
-              </div>
-            ))}
+            <SmallGauge
+              label="時間ポイント"
+              emoji="⏰"
+              earned={timePoints}
+              max={timePointsMax}
+              color="#f59e0b"
+              bgColor="rgba(245,158,11,0.12)"
+            />
+            <div style={{ width: 1, background: "rgba(0,0,0,0.07)", margin: "8px 0" }} />
+            <SmallGauge
+              label="勉強ポイント"
+              emoji="📚"
+              earned={studyPoints}
+              max={studyPointsMax}
+              color="#6366f1"
+              bgColor="rgba(99,102,241,0.12)"
+            />
+            <div style={{ width: 1, background: "rgba(0,0,0,0.07)", margin: "8px 0" }} />
+            <SmallGauge
+              label="リラックスポイント"
+              emoji="🌿"
+              earned={relaxPoints}
+              max={relaxPointsMax}
+              color="#34d399"
+              bgColor="rgba(52,211,153,0.12)"
+            />
           </div>
         </div>
 

@@ -846,6 +846,32 @@ export function useScoreEngine() {
     return { ...cat, achieved, total: Math.max(total, 1), rate: total > 0 ? Math.round((achieved / total) * 100) : 0 };
   });
 
+  // ===== 3カテゴリ内訳ポイント =====
+  const STUDY_CONTENTS = ["study", "notebook", "reading", "podcast"];
+  const RELAX_CONTENTS = ["music", "walk", "chat", "detox", "nap", "stretch"];
+
+  const timePoints = events.reduce((sum, e) => {
+    if (!e.timeAchieved) return sum;
+    return sum + (e.timePoint || 0) + (e.timeBonus || 0);
+  }, 0);
+  const timePointsMax = Math.max(1, events.reduce((sum, e) => sum + (e.timePoint || 0), 0) + events.filter(e => e.timePoint > 0).length * 5);
+
+  const studyPoints = events.reduce((sum, e) => {
+    if (!e.taskAchieved) return sum;
+    const c = e.selectedContent || "";
+    if (!STUDY_CONTENTS.includes(c)) return sum;
+    return sum + (e.taskPoint || 0);
+  }, 0);
+  const studyPointsMax = Math.max(1, events.filter(e => e.taskPoint > 0).length * 15);
+
+  const relaxPoints = events.reduce((sum, e) => {
+    if (!e.taskAchieved) return sum;
+    const c = e.selectedContent || "";
+    if (!RELAX_CONTENTS.includes(c)) return sum;
+    return sum + (e.taskPoint || 0);
+  }, 0);
+  const relaxPointsMax = Math.max(1, events.filter(e => e.taskPoint > 0).length * 12);
+
   // 旧互換: gameState風オブジェクト（既存コンポーネント用）
   const gameState = {
     score: {
@@ -898,6 +924,13 @@ export function useScoreEngine() {
     earnedPoints: earned,
     totalPoints: total,
     bonusTotal,
+    // 3カテゴリ内訳
+    timePoints,
+    timePointsMax,
+    studyPoints,
+    studyPointsMax,
+    relaxPoints,
+    relaxPointsMax,
     calcTimeBonus,
     taskMode,
     setTaskMode,
