@@ -203,26 +203,8 @@ export default function GaugeMeter({
     ctx.fillStyle = colors.hex;
     ctx.fill();
 
-    // === Score number（実際の獲得ポイントをそのまま表示） ===
-    const actualEarned = dispEarned !== undefined ? dispEarned : earnedPoints;
-    const mainNum = actualEarned !== undefined ? Math.round(actualEarned) : Math.round(currentScore);
-
-    // メインの数字（大きく・上方に移動）
-    ctx.font = `700 ${w * 0.17}px 'Shippori Mincho', serif`;
-    ctx.fillStyle = colors.hex;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = colors.hex + "40";
-    ctx.shadowBlur = isOver100 ? 18 : 12;
-    ctx.fillText(String(mainNum), cx, cy - outerR * 0.72);
-    ctx.shadowBlur = 0;
-
-    // "pt" ラベル（数字の直下・中心円と重ならない位置）
-    ctx.font = `500 ${w * 0.05}px 'Noto Sans JP', sans-serif`;
-    ctx.fillStyle = colors.hex + "cc";
-    ctx.fillText("pt", cx, cy - outerR * 0.55);
-
     ctx.restore();
+    // ① 数字・ptはCanvas外のHTMLで表示（重なりゼロ）
   }, [label, earnedPoints, totalPoints]);
 
   // 通常の到達アニメーション
@@ -305,11 +287,68 @@ export default function GaugeMeter({
     draw(currentAngleRef.current, score, earnedPoints, totalPoints);
   }, [size, draw, score, earnedPoints, totalPoints]);
 
+  const displayNum = earnedPoints !== undefined ? Math.round(earnedPoints) : Math.round(score);
+  const colorHex = score > 100 ? "#f59e0b" : score >= 70 ? "#5ec9a0" : score >= 40 ? "#c084f5" : "#f472b6";
+
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ display: "block", margin: "0 auto" }}
-      aria-label={`${label}: ${earnedPoints !== undefined ? earnedPoints : Math.round(score)}点`}
-    />
+    <div style={{ position: "relative", display: "inline-block", width: size, margin: "0 auto" }}>
+      <canvas
+        ref={canvasRef}
+        style={{ display: "block" }}
+        aria-label={`${label}: ${displayNum}点`}
+      />
+      {/* 数字・pt — Canvas内縁の下方・中心円の上に絶対配置 */}
+      <div
+        style={{
+          position: "absolute",
+          // 弧内縁の下方・中心円の上に来るように調整
+          // Canvas高さ = size * 0.68, cy = 高さ * 0.82
+          // 弧内縁最上部Y = cy - innerR = (size*0.68*0.82) - (size*0.30)
+          // 中心円上端Y = cy - 14 = (size*0.68*0.82) - 14
+          // 中間点Y = (cy - innerR + cy - 14) / 2
+          // 中心円上端から数字を中心円の上に配置
+          // Canvas下端から中心円上端まで = Canvas高さ - cy + 14 = size*0.68 - size*0.68*0.82 + 14
+          // Canvas上端からの安全ゾーン中央: cy - innerR/2
+          // cy = size*0.68*0.82 = 189, innerR = size*0.30 = 102
+          // 中心円上端 = cy - 14 = 175
+          // 弧内縁最上部 = cy - innerR = 87
+          // 安全ゾーン中央 = (87 + 175) / 2 = 131
+          // bottom = Canvas高さ - 中央点Y = 231 - 131 = 100
+          bottom: Math.round(size * 0.295),  // 安全ゾーン中央（弧内縁と中心円の中間）
+          left: 0,
+          right: 0,
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "center",
+          gap: 2,
+          pointerEvents: "none",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "'Shippori Mincho', serif",
+            fontWeight: 700,
+            fontSize: size * 0.13,
+            color: colorHex,
+            lineHeight: 1,
+            textShadow: `0 0 12px ${colorHex}50`,
+          }}
+        >
+          {displayNum}
+        </span>
+        <span
+          style={{
+            fontFamily: "'Noto Sans JP', sans-serif",
+            fontWeight: 600,
+            fontSize: size * 0.048,
+            color: colorHex + "bb",
+            lineHeight: 1,
+            paddingBottom: 2,
+          }}
+        >
+          pt
+        </span>
+      </div>
+    </div>
   );
 }
