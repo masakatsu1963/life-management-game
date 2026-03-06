@@ -56,7 +56,7 @@ export default function GaugeMeter({
     const w = canvas.width / dpr;
     const h = canvas.height / dpr;
     const cx = w / 2;
-    const cy = h * 0.75;
+    const cy = h * 0.82;  // 中心を下方に移動してメーターを下げ、数字スペースを確保
     const outerR = w * 0.42;
     const innerR = w * 0.30;
     const trackW = outerR - innerR;
@@ -148,7 +148,7 @@ export default function GaugeMeter({
 
       if (isMajor) {
         const labelVal = i * 10;
-        const labelDist = dotDist + 14;
+        const labelDist = dotDist + 12;
         const lx = cx + Math.cos(tickAngle) * labelDist;
         const ly = cy + Math.sin(tickAngle) * labelDist;
         ctx.font = `500 ${w * 0.028}px 'Noto Sans JP', sans-serif`;
@@ -214,13 +214,13 @@ export default function GaugeMeter({
     ctx.textBaseline = "middle";
     ctx.shadowColor = colors.hex + "40";
     ctx.shadowBlur = isOver100 ? 18 : 12;
-    ctx.fillText(String(mainNum), cx, cy - outerR * 0.30);
+    ctx.fillText(String(mainNum), cx, cy - outerR * 0.72);
     ctx.shadowBlur = 0;
 
-    // "pt" ラベル（数字の直下）
+    // "pt" ラベル（数字の直下・中心円と重ならない位置）
     ctx.font = `500 ${w * 0.05}px 'Noto Sans JP', sans-serif`;
     ctx.fillStyle = colors.hex + "cc";
-    ctx.fillText("pt", cx, cy - outerR * 0.10);
+    ctx.fillText("pt", cx, cy - outerR * 0.55);
 
     ctx.restore();
   }, [label, earnedPoints, totalPoints]);
@@ -299,9 +299,9 @@ export default function GaugeMeter({
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = size * dpr;
-    canvas.height = (size * 0.62) * dpr;
+    canvas.height = (size * 0.68) * dpr;
     canvas.style.width = `${size}px`;
-    canvas.style.height = `${size * 0.62}px`;
+    canvas.style.height = `${size * 0.68}px`;  // 目盛りラベルが切れないよう高さを増加
     draw(currentAngleRef.current, score, earnedPoints, totalPoints);
   }, [size, draw, score, earnedPoints, totalPoints]);
 

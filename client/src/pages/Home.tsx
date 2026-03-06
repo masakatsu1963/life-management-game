@@ -398,13 +398,13 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="px-2 pt-1 pb-2">
+          <div className="px-2 pt-1 pb-0">
             <GaugeMeter score={score} size={340} animated earnedPoints={earnedPoints} totalPoints={totalPoints} />
           </div>
 
           {/* 3サブメーター（時間・勉強・リラックス） */}
           <div
-            className="flex items-stretch px-3 pb-3 pt-1"
+            className="flex items-stretch px-3 pb-3 pt-0"
             style={{ borderTop: `1px solid ${scoreScheme.border}30`, gap: 4 }}
           >
             <SmallGauge
