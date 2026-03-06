@@ -2,6 +2,7 @@
  * SmallGauge.tsx
  * 小型半円メーター（3カテゴリ内訳表示用）
  * デザイン: 和モダン・シンプル・スマホ幅の1/3に収まるサイズ
+ * 構造: 上部に半円メーター、中央に数字、下部にラベル（重ならない）
  */
 
 import React from "react";
@@ -16,36 +17,35 @@ interface SmallGaugeProps {
 }
 
 export default function SmallGauge({ label, emoji, earned, max, color, bgColor }: SmallGaugeProps) {
-  // 半円（180度）のSVGパラメータ
-  const R = 36;
-  const cx = 48;
-  const cy = 48;
+  const R = 34;
+  // 弧の中心を上部に配置（cy を大きくして弧が上に来るように）
+  const cx = 50;
+  const cy = 44;  // 弧の中心Y（viewBox高さより下に置くことで上半分だけ見える）
   const strokeW = 7;
 
   // 半円の弧長
-  const circumference = Math.PI * R; // 半円なので π*r
+  const circumference = Math.PI * R;
   const ratio = Math.min(earned / Math.max(max, 1), 1);
   const dashOffset = circumference * (1 - ratio);
 
-  // 半円の start/end 点（左端=180°, 右端=0°）
+  // 半円パス（左端→右端、上方向の弧）
   const startX = cx - R;
   const startY = cy;
   const endX = cx + R;
   const endY = cy;
-
-  // SVG半円パス（上半分の弧）
   const arcPath = `M ${startX} ${startY} A ${R} ${R} 0 0 1 ${endX} ${endY}`;
 
-  // 針の角度（-180° から 0° まで）
+  // 針の角度（-180° から 0°）
   const needleAngle = -180 + ratio * 180;
   const needleRad = (needleAngle * Math.PI) / 180;
   const needleLen = R - strokeW - 2;
   const needleX = cx + needleLen * Math.cos(needleRad);
   const needleY = cy + needleLen * Math.sin(needleRad);
 
-  // 100超えの場合は針を右端固定＋震えアニメーション
   const isOver = earned > max;
 
+  // viewBox: 幅100, 高さ55（弧の上部〜中心点まで）
+  // cy=44 なので弧の最上部は cy-R=10、中心は44、下に数字エリアを確保
   return (
     <div
       style={{
@@ -57,10 +57,10 @@ export default function SmallGauge({ label, emoji, earned, max, color, bgColor }
         minWidth: 0,
       }}
     >
-      {/* SVGメーター */}
+      {/* SVGメーター（弧のみ・数字なし） */}
       <svg
-        viewBox="0 0 96 54"
-        style={{ width: "100%", maxWidth: 110, overflow: "visible" }}
+        viewBox="0 0 100 46"
+        style={{ width: "100%", maxWidth: 110, overflow: "visible", display: "block" }}
       >
         {/* 背景アーク */}
         <path
@@ -90,7 +90,7 @@ export default function SmallGauge({ label, emoji, earned, max, color, bgColor }
           y1={cy}
           x2={needleX}
           y2={needleY}
-          stroke={isOver ? color : "#6b7280"}
+          stroke={isOver ? color : "#9ca3af"}
           strokeWidth={isOver ? 2.5 : 1.8}
           strokeLinecap="round"
           style={{
@@ -99,41 +99,33 @@ export default function SmallGauge({ label, emoji, earned, max, color, bgColor }
           }}
         />
         {/* 中心点 */}
-        <circle cx={cx} cy={cy} r={3} fill={isOver ? color : "#9ca3af"} />
-        {/* ポイント数字 */}
-        <text
-          x={cx}
-          y={cy - 6}
-          textAnchor="middle"
-          fontSize={isOver ? "13" : "14"}
-          fontWeight="900"
-          fontFamily="'Shippori Mincho', serif"
-          fill={isOver ? color : "#374151"}
-        >
-          {earned}
-        </text>
-        {/* /max */}
-        <text
-          x={cx}
-          y={cy + 5}
-          textAnchor="middle"
-          fontSize="7"
-          fontFamily="'Noto Sans JP', sans-serif"
-          fill="#9ca3af"
-        >
-          /{max}pt
-        </text>
+        <circle cx={cx} cy={cy} r={3.5} fill={isOver ? color : "#d1d5db"} />
       </svg>
+
+      {/* ポイント数字（SVGの外・メーターの直下） */}
+      <div
+        style={{
+          fontSize: isOver ? 13 : 15,
+          fontWeight: 900,
+          fontFamily: "'Shippori Mincho', serif",
+          color: isOver ? color : "#374151",
+          lineHeight: 1,
+          marginTop: -2,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {earned}<span style={{ fontSize: 9, fontWeight: 500, color: "#9ca3af", marginLeft: 1 }}>pt</span>
+      </div>
 
       {/* ラベル（1行: ⏰時間pt） */}
       <div
         style={{
-          fontSize: 11,
+          fontSize: 10,
           fontFamily: "'Noto Sans JP', sans-serif",
-          color: "#6b7280",
+          color: "#9ca3af",
           textAlign: "center",
-          marginTop: 4,
-          lineHeight: 1.4,
+          marginTop: 2,
+          lineHeight: 1.3,
           whiteSpace: "nowrap",
         }}
       >
