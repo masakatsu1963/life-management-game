@@ -10,7 +10,7 @@
  *   使い方タブ: ヘルプ
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import GaugeMeter from "@/components/GaugeMeter";
 import WeeklyDonut from "@/components/WeeklyDonut";
 import DailyProgressBar from "@/components/DailyProgressBar";
@@ -64,6 +64,26 @@ export default function Home() {
   const [showSetup, setShowSetup] = useState(() => !profile.name);
   const prevScoreRef = useRef(score);
   const [scoreFlash, setScoreFlash] = useState(false);
+
+  // メーターサイズを画面幅に合わせて動的計算
+  const gaugeContainerRef = useRef<HTMLDivElement>(null);
+  const [gaugeSize, setGaugeSize] = useState(300);
+  useEffect(() => {
+    const updateSize = () => {
+      if (gaugeContainerRef.current) {
+        // コンテナ幅 - 左右padding(px-2 = 8px*2)
+        const containerW = gaugeContainerRef.current.clientWidth - 16;
+        // 最大300px、最小220pxに制限
+        setGaugeSize(Math.max(220, Math.min(300, containerW)));
+      } else {
+        // フォールバック: 画面幅 - 32px
+        setGaugeSize(Math.max(220, Math.min(300, window.innerWidth - 32)));
+      }
+    };
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
 
   // 早起きポイント状態
   const todayKey = new Date().toISOString().slice(0, 10);
@@ -398,8 +418,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="px-2 pt-1 pb-0">
-            <GaugeMeter score={score} size={340} animated earnedPoints={earnedPoints} totalPoints={totalPoints} />
+          <div className="px-2 pt-1 pb-0" ref={gaugeContainerRef}>
+            <GaugeMeter score={score} size={gaugeSize} animated earnedPoints={earnedPoints} totalPoints={totalPoints} />
           </div>
 
           {/* 3サブメーター（時間・勉強・リラックス） */}
