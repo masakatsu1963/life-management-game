@@ -96,12 +96,8 @@ export default function Home() {
   const [earlyRiseAnim, setEarlyRiseAnim] = useState(false);
 
   // 早起きボタン表示条件: 起床時間から+3時間以内の朝
-  const isEarlyRiseWindow = (() => {
-    const [wh, wm] = (profile.wakeTime || "06:30").split(":").map(Number);
-    const wakeMinutes = wh * 60 + wm;
-    const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-    return nowMinutes >= wakeMinutes - 60 && nowMinutes <= wakeMinutes + 180;
-  })();
+  // 早起きボタンは当日中は常に表示（タップ忘れ防止）
+  const isEarlyRiseWindow = true;
 
   // 現在時刻と理想起床時間の差分（リアルタイム）
   const currentDiff = (() => {
