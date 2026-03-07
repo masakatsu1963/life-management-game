@@ -99,6 +99,11 @@ export default function Home() {
   // 早起きボタンは当日中は常に表示（タップ忘れ防止）
   const isEarlyRiseWindow = true;
 
+  // 早起きボーナスを含む実際の獲得ポイント
+  const totalEarnedPoints = earnedPoints + earlyRiseBonus;
+  // 早起きボーナスを含むスコア（メーター针位置に反映）
+  const totalScore = totalPoints > 0 ? Math.round((totalEarnedPoints / totalPoints) * 100) : score;
+
   // 現在時刻と理想起床時間の差分（リアルタイム）
   const currentDiff = (() => {
     const [wh, wm] = (profile.wakeTime || "06:30").split(":").map(Number);
@@ -146,11 +151,11 @@ export default function Home() {
     if (!showSetup && !profile.name) setShowSetup(true);
   }, [profile.name]);
 
-  const scoreScheme = score > 100
+  const scoreScheme = totalScore > 100
     ? { main: "#f59e0b", light: "#fef3c7", badge: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.3)", label: "超過達成！⭐" }
-    : score >= 70
+    : totalScore >= 70
     ? { main: "#34d399", light: "#d1fae5", badge: "rgba(52,211,153,0.15)", border: "rgba(52,211,153,0.3)", label: "絶好調！🌿" }
-    : score >= 40
+    : totalScore >= 40
     ? { main: "#c084f5", light: "#f3e8ff", badge: "rgba(192,132,245,0.15)", border: "rgba(192,132,245,0.3)", label: "順調🌷" }
     : { main: "#f472b6", light: "#fce7f3", badge: "rgba(244,114,182,0.15)", border: "rgba(244,114,182,0.3)", label: "がんばろう🌸" };
 
@@ -235,7 +240,7 @@ export default function Home() {
             className="text-xs px-2 py-1 rounded-full font-bold"
             style={{ color: scoreScheme.main, background: scoreScheme.badge, border: `1px solid ${scoreScheme.border}` }}
           >
-            {earnedPoints}/{totalPoints}pt
+            {totalEarnedPoints}/{totalPoints}pt
           </div>
         </div>
       </header>
@@ -415,7 +420,7 @@ export default function Home() {
           </div>
 
           <div className="px-2 pt-1 pb-0" ref={gaugeContainerRef}>
-            <GaugeMeter score={score} size={gaugeSize} animated earnedPoints={earnedPoints} totalPoints={totalPoints} />
+            <GaugeMeter score={totalScore} size={gaugeSize} animated earnedPoints={totalEarnedPoints} totalPoints={totalPoints} />
           </div>
 
           {/* 3サブメーター（時間・勉強・リラックス） */}
@@ -426,7 +431,7 @@ export default function Home() {
             <SmallGauge
               label="時間pt"
               emoji="⏰"
-              earned={timePoints}
+              earned={timePoints + earlyRiseBonus}
               max={timePointsMax}
               color="#f59e0b"
               bgColor="rgba(245,158,11,0.12)"

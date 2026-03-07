@@ -619,11 +619,12 @@ export function useScoreEngine() {
       try {
         const pastEvents: DailyEvent[] = JSON.parse(raw);
         const { score: s, earned: e } = calcScore(pastEvents, savedTaskMode, savedDayMode);
+        const pastEarlyBonus = parseInt(localStorage.getItem(`lgm_early_rise_bonus_${dateKey}`) || "0");
         const achievements: Record<string, { time: boolean; location: boolean; task: boolean }> = {};
         pastEvents.forEach(ev => {
           achievements[ev.id] = { time: ev.timeAchieved, location: ev.locationAchieved, task: ev.taskAchieved };
         });
-        newLogs.push({ date: dateKey, score: s, earnedPoints: e, eventAchievements: achievements });
+        newLogs.push({ date: dateKey, score: s + pastEarlyBonus, earnedPoints: e + pastEarlyBonus, eventAchievements: achievements });
       } catch {}
     }
     if (newLogs.length > 0) {
@@ -657,13 +658,14 @@ export function useScoreEngine() {
             const prevMode = (localStorage.getItem("lgm_day_mode") as DayMode) || "normal";
             const prevTaskMode = (localStorage.getItem("lgm_task_mode") as TaskMode) || "hard";
             const { score: prevScore, earned: prevEarned } = calcScore(prevEvents, prevTaskMode, prevMode);
+            const prevEarlyBonus = parseInt(localStorage.getItem(`lgm_early_rise_bonus_${prevDateKey}`) || "0");
             const achievements: Record<string, { time: boolean; location: boolean; task: boolean }> = {};
             prevEvents.forEach(e => {
               achievements[e.id] = { time: e.timeAchieved, location: e.locationAchieved, task: e.taskAchieved };
             });
             setWeeklyLogs(prev => {
               const filtered = prev.filter(l => l.date !== prevDateKey);
-              const updated = [...filtered, { date: prevDateKey, score: prevScore, earnedPoints: prevEarned, eventAchievements: achievements }]
+              const updated = [...filtered, { date: prevDateKey, score: prevScore + prevEarlyBonus, earnedPoints: prevEarned + prevEarlyBonus, eventAchievements: achievements }]
                 .sort((a, b) => a.date.localeCompare(b.date))
                 .slice(-7);
               localStorage.setItem("lgm_weekly_logs_v2", JSON.stringify(updated));
@@ -694,13 +696,14 @@ export function useScoreEngine() {
     const todayKey = getTodayKey();
     localStorage.setItem(`lgm_events_${todayKey}`, JSON.stringify(events));
     const { score, earned } = calcScore(events, taskMode);
+    const todayEarlyBonus = parseInt(localStorage.getItem(`lgm_early_rise_bonus_${todayKey}`) || "0");
     setWeeklyLogs(prev => {
       const filtered = prev.filter(l => l.date !== todayKey);
       const achievements: Record<string, { time: boolean; location: boolean; task: boolean }> = {};
       events.forEach(e => {
         achievements[e.id] = { time: e.timeAchieved, location: e.locationAchieved, task: e.taskAchieved };
       });
-      const updated = [...filtered, { date: todayKey, score, earnedPoints: earned, eventAchievements: achievements }]
+      const updated = [...filtered, { date: todayKey, score: score + todayEarlyBonus, earnedPoints: earned + todayEarlyBonus, eventAchievements: achievements }]
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(-7);
       localStorage.setItem("lgm_weekly_logs_v2", JSON.stringify(updated));
