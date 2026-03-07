@@ -249,7 +249,7 @@ export default function TodayTimeline({
                             <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginBottom: 8 }}>
                               何をしましたか？
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
                               {TASK_CONTENTS.map(c => (
                                 <button
                                   key={c.id}
@@ -435,7 +435,7 @@ export default function TodayTimeline({
                       {event.requiresTask && (
                         <div style={{ marginBottom: 12 }}>
                           <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginBottom: 8 }}>何をしましたか？</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                             {TASK_CONTENTS.map(c => (
                               <button
                                 key={c.id}
