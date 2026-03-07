@@ -249,14 +249,14 @@ export default function TodayTimeline({
                             <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginBottom: 8 }}>
                               何をしましたか？
                             </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
                               {TASK_CONTENTS.map(c => (
                                 <button
                                   key={c.id}
                                   onClick={() => onContentChange(event.id, c.id)}
                                   style={{
                                     display: "flex", alignItems: "center", gap: 6,
-                                    padding: "8px 10px", borderRadius: 12, fontSize: 12, fontWeight: 500,
+                                    padding: "5px 10px", borderRadius: 10, fontSize: 12, fontWeight: 500,
                                     cursor: "pointer", transition: "all 0.15s",
                                     background: event.selectedContent === c.id
                                       ? "linear-gradient(135deg, rgba(244,114,182,0.2), rgba(192,132,245,0.2))"
@@ -435,14 +435,14 @@ export default function TodayTimeline({
                       {event.requiresTask && (
                         <div style={{ marginBottom: 12 }}>
                           <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginBottom: 8 }}>何をしましたか？</div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                             {TASK_CONTENTS.map(c => (
                               <button
                                 key={c.id}
                                 onClick={() => onContentChange(event.id, c.id)}
                                 style={{
                                   display: "flex", alignItems: "center", gap: 6,
-                                  padding: "8px 10px", borderRadius: 12, fontSize: 12, fontWeight: 500,
+                                  padding: "5px 10px", borderRadius: 10, fontSize: 12, fontWeight: 500,
                                   cursor: "pointer", transition: "all 0.15s",
                                   background: event.selectedContent === c.id ? "linear-gradient(135deg, rgba(244,114,182,0.2), rgba(192,132,245,0.2))" : "rgba(0,0,0,0.03)",
                                   border: event.selectedContent === c.id ? "1.5px solid rgba(244,114,182,0.5)" : "1px solid rgba(0,0,0,0.08)",
