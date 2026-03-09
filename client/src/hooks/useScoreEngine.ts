@@ -118,6 +118,7 @@ export const TASK_CONTENTS: TaskContent[] = [
   { id: "chat",     label: "おしゃべり",   emoji: "💬", taskPt: 10, relaxPt: 0 },  // コミュニケーション
   { id: "detox",    label: "デトックス",   emoji: "🌿", taskPt: 10, relaxPt: 0 },  // 就寝前標準
   { id: "nap",      label: "仮眠",       emoji: "😴", taskPt:  8, relaxPt: 0 },  // 休息（やや低め）
+  { id: "nothing",  label: "何もしなかった", emoji: "💤", taskPt:  0, relaxPt: 0 },  // 記録のみ
 ];
 
 export interface DailyEvent {
@@ -263,33 +264,32 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
   ];
 
   // タスク選択型イベント（表示） - タスク系 各10pt
-  const defaultContent = "notebook";
   const taskEvents: DailyEvent[] = [
     { ...BASE, id: "morning_task", label: lbl.morningTask, emoji: "🌸",
       scheduledTime: addMinutes(profile.wakeTime, 15),
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: defaultContent, taskLabel: "NotebookLM" },
+      selectedContent: undefined, taskLabel: undefined },
     { ...BASE, id: "commute_task", label: lbl.commuteTask, emoji: "🙌",
       scheduledTime: addMinutes(leaveHomeTime, 15),
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: defaultContent, locationLabel: "電車内", taskLabel: "NotebookLM" },
+      selectedContent: undefined, locationLabel: "電車内", taskLabel: undefined },
     { ...BASE, id: "lunch_task", label: lbl.lunchTask, emoji: "☕",
       scheduledTime: lunchTime,
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "walk", taskLabel: "散歩" },
+      selectedContent: undefined, taskLabel: undefined },
     { ...BASE, id: "return_commute", label: lbl.returnTask, emoji: "🎧",
       scheduledTime: returnCommuteTime,
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: defaultContent, locationLabel: "電車内", taskLabel: "NotebookLM" },
+      selectedContent: undefined, locationLabel: "電車内", taskLabel: undefined },
     { ...BASE, id: "bedtime_detox", label: "就寝前デトックス", emoji: "🌙",
       scheduledTime: profile.bedTime,
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "detox", taskLabel: "デトックス" },
+      selectedContent: undefined, taskLabel: undefined },
   ];
 
   return [...autoEvents, ...taskEvents].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
@@ -318,57 +318,57 @@ export function buildHolidayEvents(profile: UserProfile): DailyEvent[] {
       scheduledTime: morningSlot1,
       timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "study", taskLabel: "勉強",
+      selectedContent: undefined, taskLabel: undefined,
       holidaySlot: "morning" as const },
     { ...BASE, id: "holiday_am2", label: "午前タスク 2", emoji: "☀️",
       scheduledTime: morningSlot2,
       timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "reading", taskLabel: "読書",
+      selectedContent: undefined, taskLabel: undefined,
       holidaySlot: "morning" as const },
     { ...BASE, id: "holiday_am3", label: "午前タスク 3", emoji: "☀️",
       scheduledTime: morningSlot3,
       timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "stretch", taskLabel: "ストレッチ",
+      selectedContent: undefined, taskLabel: undefined,
       holidaySlot: "morning" as const },
     // 🌞 午後ブロック
     { ...BASE, id: "holiday_pm1", label: "午後タスク 1", emoji: "🌞",
       scheduledTime: "13:00",
       timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "walk", taskLabel: "散歩",
+      selectedContent: undefined, taskLabel: undefined,
       holidaySlot: "afternoon" as const },
     { ...BASE, id: "holiday_pm2", label: "午後タスク 2", emoji: "🌞",
       scheduledTime: "14:30",
       timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "podcast", taskLabel: "ポッドキャスト",
+      selectedContent: undefined, taskLabel: undefined,
       holidaySlot: "afternoon" as const },
     { ...BASE, id: "holiday_pm3", label: "午後タスク 3", emoji: "🌞",
       scheduledTime: "16:00",
       timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "music", taskLabel: "音楽",
+      selectedContent: undefined, taskLabel: undefined,
       holidaySlot: "afternoon" as const },
     // 🌙 夜間ブロック
     { ...BASE, id: "holiday_eve1", label: "夜間タスク 1", emoji: "🌙",
       scheduledTime: "19:00",
       timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "study", taskLabel: "勉強",
+      selectedContent: undefined, taskLabel: undefined,
       holidaySlot: "evening" as const },
     { ...BASE, id: "holiday_eve2", label: "夜間タスク 2", emoji: "🌙",
       scheduledTime: "20:30",
       timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "reading", taskLabel: "読書",
+      selectedContent: undefined, taskLabel: undefined,
       holidaySlot: "evening" as const },
     { ...BASE, id: "holiday_eve3", label: "就寝前デトックス", emoji: "🌙",
       scheduledTime: profile.bedTime,
       timePoint: 0, locationPoint: 0, taskPoint: 30, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
-      selectedContent: "detox", taskLabel: "デトックス",
+      selectedContent: undefined, taskLabel: undefined,
       holidaySlot: "evening" as const },
   ];
 }

@@ -199,8 +199,8 @@ export default function TodayTimeline({
 
                           {/* ラベル */}
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: allDone ? "#059669" : "#374151" }}>
-                              {selectedContent ? `${selectedContent.emoji} ${selectedContent.label}` : event.label}
+                            <div style={{ fontSize: 13, fontWeight: 600, color: allDone ? "#059669" : selectedContent ? "#374151" : "#9ca3af" }}>
+                              {selectedContent ? `${selectedContent.emoji} ${selectedContent.label}` : allDone ? event.label : "何をしましたか？"}
                               {allDone && <span style={{ marginLeft: 6, fontSize: 11, color: "#10b981" }}>✓ 完了</span>}
                             </div>
                             <div style={{ fontSize: 11, color: "#9ca3af" }}>
@@ -268,8 +268,8 @@ export default function TodayTimeline({
                                 >
                                   <span style={{ fontSize: 15 }}>{c.emoji}</span>
                                   <span style={{ flex: 1, textAlign: "left" }}>{c.label}</span>
-                                  <span style={{ fontSize: 10, color: "#f472b6", fontWeight: 700 }}>
-                                    ×3={c.taskPt * 3}pt
+                                  <span style={{ fontSize: 10, color: c.taskPt === 0 ? "#9ca3af" : "#f472b6", fontWeight: 700 }}>
+                                    {c.taskPt === 0 ? "0pt" : `×3=${c.taskPt * 3}pt`}
                                   </span>
                                 </button>
                               ))}
@@ -383,17 +383,12 @@ export default function TodayTimeline({
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
                       <span style={{ fontSize: 18, flexShrink: 0 }}>{event.emoji}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: allDone ? "#059669" : isActive ? "#7c3aed" : "#374151", lineHeight: 1.3 }}>
-                          {event.label}
+                        <div style={{ fontSize: 13, fontWeight: 600, color: allDone ? "#059669" : selectedContent ? (isActive ? "#7c3aed" : "#374151") : "#9ca3af", lineHeight: 1.3 }}>
+                          {selectedContent ? `${selectedContent.emoji} ${selectedContent.label}` : allDone ? event.label : "何をしましたか？"}
                           {allDone && <span style={{ marginLeft: 6, fontSize: 11, color: "#10b981" }}>✓ 完了</span>}
                         </div>
                         <div style={{ fontSize: 11, color: "#9ca3af", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
                           <span>{event.scheduledTime}</span>
-                          {selectedContent && (
-                            <span style={{ background: "rgba(244,114,182,0.12)", color: "#be185d", borderRadius: 99, padding: "1px 6px", fontSize: 10, fontWeight: 600 }}>
-                              {selectedContent.emoji} {selectedContent.label}
-                            </span>
-                          )}
                           {!allDone && (() => {
                             const liveHHMM = `${String(liveTime.getHours()).padStart(2, "0")}:${String(liveTime.getMinutes()).padStart(2, "0")}`;
                             const [sh, sm] = event.scheduledTime.split(":").map(Number);
@@ -452,7 +447,7 @@ export default function TodayTimeline({
                               >
                                 <span style={{ fontSize: 16 }}>{c.emoji}</span>
                                 <span style={{ flex: 1, textAlign: "left" }}>{c.label}</span>
-                                <span style={{ fontSize: 10, color: "#f472b6", fontWeight: 700, flexShrink: 0 }}>+{c.taskPt}pt</span>
+                                <span style={{ fontSize: 10, color: c.taskPt === 0 ? "#9ca3af" : "#f472b6", fontWeight: 700, flexShrink: 0 }}>{c.taskPt === 0 ? "0pt" : `+${c.taskPt}pt`}</span>
                               </button>
                             ))}
                           </div>
