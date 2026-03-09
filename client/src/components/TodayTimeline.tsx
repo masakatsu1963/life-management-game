@@ -246,9 +246,6 @@ export default function TodayTimeline({
                             style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 10 }}
                             onClick={e => e.stopPropagation()}
                           >
-                            <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginBottom: 8 }}>
-                              何をしましたか？
-                            </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
                               {TASK_CONTENTS.map(c => (
                                 <button
@@ -429,7 +426,6 @@ export default function TodayTimeline({
                     <div style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 10 }} onClick={e => e.stopPropagation()}>
                       {event.requiresTask && (
                         <div style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginBottom: 8 }}>何をしましたか？</div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                             {TASK_CONTENTS.map(c => (
                               <button
