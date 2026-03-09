@@ -314,7 +314,7 @@ export default function GaugeMeter({
           // 弧内縁最上部 = cy - innerR = 87
           // 安全ゾーン中央 = (87 + 175) / 2 = 131
           // bottom = Canvas高さ - 中央点Y = 231 - 131 = 100
-          bottom: Math.round(size * 0.295),  // 安全ゾーン中央（弧内縁と中心円の中間）
+          bottom: Math.round(size * 0.295) - 20,  // 安全ゾーン中央（弧内縁と中心円の中間）から20px下へ移動
           left: 0,
           right: 0,
           display: "flex",
