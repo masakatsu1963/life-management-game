@@ -620,6 +620,23 @@ export default function Home() {
 
         {/* === HELP TAB === */}
         {activeTab === "help" && <HelpPage />}
+
+        {/* === クレジットフッター === */}
+        <footer
+          className="text-center py-4 mt-2"
+          style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: "0.65rem", color: "rgba(0,0,0,0.28)" }}
+        >
+          &copy; 2026{" "}
+          <a
+            href="https://rengedo.asia/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "rgba(192,132,245,0.7)", textDecoration: "underline", textUnderlineOffset: 2 }}
+          >
+            蓮華堂
+          </a>
+          {" "}All rights reserved.
+        </footer>
       </main>
 
       {/* Bottom navigation */}
