@@ -523,30 +523,32 @@ export default function Home() {
         ============================================= */}
         {activeTab === "today" && (
           <div className="flex flex-col gap-3">
-            {/* サブタブ切り替え */}
-            <div
-              className="flex rounded-2xl overflow-hidden p-1"
-              style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
-            >
-              {(["tasks", "movement"] as const).map((t) => {
-                const active = todaySubTab === t;
-                return (
-                  <button
-                    key={t}
-                    onClick={() => setTodaySubTab(t)}
-                    className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
-                    style={{
-                      fontFamily: "'Noto Sans JP', sans-serif",
-                      background: active ? "linear-gradient(135deg, #f9a8d4, #c084fc)" : "transparent",
-                      color: active ? "white" : "rgba(0,0,0,0.4)",
-                      boxShadow: active ? "0 2px 8px rgba(192,132,252,0.3)" : "none",
-                    }}
-                  >
-                    {t === "tasks" ? "🌸 タスク" : "📍 移動ログ"}
-                  </button>
-                );
-              })}
-            </div>
+            {/* サブタブ切り替え（通常モードのみ表示） */}
+            {dayMode === "normal" && (
+              <div
+                className="flex rounded-2xl overflow-hidden p-1"
+                style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
+              >
+                {(["tasks", "movement"] as const).map((t) => {
+                  const active = todaySubTab === t;
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => setTodaySubTab(t)}
+                      className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
+                      style={{
+                        fontFamily: "'Noto Sans JP', sans-serif",
+                        background: active ? "linear-gradient(135deg, #f9a8d4, #c084fc)" : "transparent",
+                        color: active ? "white" : "rgba(0,0,0,0.4)",
+                        boxShadow: active ? "0 2px 8px rgba(192,132,252,0.3)" : "none",
+                      }}
+                    >
+                      {t === "tasks" ? "🌸 タスク" : "📍 移動ログ"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* タスクタイムライン */}
             {todaySubTab === "tasks" && (
@@ -573,8 +575,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* 移動ログ */}
-            {todaySubTab === "movement" && (
+            {/* 移動ログ（通常モードのみ） */}
+            {dayMode === "normal" && todaySubTab === "movement" && (
               <div
                 className="rounded-2xl p-4"
                 style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(0,0,0,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}
