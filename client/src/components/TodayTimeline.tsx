@@ -164,11 +164,13 @@ export default function TodayTimeline({
                   const allDone = event.taskAchieved;
                   const selectedContent = TASK_CONTENTS.find(c => c.id === event.selectedContent);
                   const status = getStatus(event.scheduledTime, currentTime);
+                  // 未来タスクはロック
+                  const isFuture = status === "future";
 
                   return (
                     <div key={event.id}>
                       <div
-                        onClick={() => !allDone && setExpandedId(expanded ? null : event.id)}
+                        onClick={() => !allDone && !isFuture && setExpandedId(expanded ? null : event.id)}
                         style={{
                           background: allDone
                             ? "rgba(16,185,129,0.08)"
@@ -178,9 +180,10 @@ export default function TodayTimeline({
                           border: allDone
                             ? "1px solid rgba(16,185,129,0.25)"
                             : `1px solid ${cfg.border}`,
-                          cursor: allDone ? "default" : "pointer",
-                          opacity: status === "past" && !allDone ? 0.7 : 1,
+                          cursor: allDone || isFuture ? "default" : "pointer",
+                          opacity: isFuture ? 0.38 : status === "past" && !allDone ? 0.7 : 1,
                           transition: "all 0.2s",
+                          pointerEvents: isFuture ? "none" : "auto",
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -227,16 +230,22 @@ export default function TodayTimeline({
                           </div>
 
                           {/* ポイントバッジ */}
-                          <div style={{
-                            fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99, flexShrink: 0,
-                            background: allDone ? "rgba(16,185,129,0.15)" : `${cfg.bg}`,
-                            color: allDone ? "#059669" : cfg.color,
-                            border: `1px solid ${allDone ? "rgba(16,185,129,0.3)" : cfg.border}`,
-                          }}>
-                            {allDone ? `+${event.taskPoint}pt` : `最大+${event.taskPoint}pt`}
-                          </div>
-                          {!allDone && !expanded && (
-                            <span style={{ fontSize: 10, color: "#d1d5db" }}>▼</span>
+                          {isFuture ? (
+                            <span style={{ fontSize: 13, color: "#d1d5db" }}>🔒</span>
+                          ) : (
+                            <>
+                              <div style={{
+                                fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99, flexShrink: 0,
+                                background: allDone ? "rgba(16,185,129,0.15)" : `${cfg.bg}`,
+                                color: allDone ? "#059669" : cfg.color,
+                                border: `1px solid ${allDone ? "rgba(16,185,129,0.3)" : cfg.border}`,
+                              }}>
+                                {allDone ? `+${event.taskPoint}pt` : `最大+${event.taskPoint}pt`}
+                              </div>
+                              {!allDone && !expanded && (
+                                <span style={{ fontSize: 10, color: "#d1d5db" }}>▼</span>
+                              )}
+                            </>
                           )}
                         </div>
 
@@ -328,7 +337,9 @@ export default function TodayTimeline({
           const totalEventPt = event.taskPoint;
           const allDone = earnedEventPt > 0 && earnedEventPt >= totalEventPt;
           const showNowMarker = idx === currentIdx;
-          const canOK = !allDone;
+          // 未来タスクはロック（タップ・入力不可）
+          const isFuture = status === "future";
+          const canOK = !allDone && !isFuture;
 
           return (
             <div key={event.id}>
@@ -342,13 +353,14 @@ export default function TodayTimeline({
               )}
 
               <div
-                onClick={() => !allDone && setExpandedId(expanded ? null : event.id)}
+                onClick={() => !allDone && !isFuture && setExpandedId(expanded ? null : event.id)}
                 style={{
                   display: "flex", alignItems: "flex-start",
                   marginBottom: 8,
-                  cursor: allDone ? "default" : "pointer",
-                  opacity: status === "past" && !allDone ? 0.65 : 1,
+                  cursor: allDone || isFuture ? "default" : "pointer",
+                  opacity: isFuture ? 0.38 : status === "past" && !allDone ? 0.65 : 1,
                   transition: "opacity 0.2s",
+                  pointerEvents: isFuture ? "none" : "auto",
                 }}
               >
                 {/* タイムラインドット */}
@@ -411,6 +423,8 @@ export default function TodayTimeline({
                         <div style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99, background: "rgba(110,231,183,0.2)", color: "#059669" }}>
                           +{earnedEventPt}pt
                         </div>
+                      ) : isFuture ? (
+                        <span style={{ fontSize: 13, color: "#d1d5db" }}>🔒</span>
                       ) : (
                         <>
                           <div style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 99, background: "rgba(0,0,0,0.04)", color: "#9ca3af" }}>
