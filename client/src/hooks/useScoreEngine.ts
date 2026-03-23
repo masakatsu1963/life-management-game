@@ -588,7 +588,20 @@ export function useScoreEngine() {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [dayMode, setDayModeState] = useState<DayMode>(() => {
-    return (localStorage.getItem("lgm_day_mode") as DayMode) || "normal";
+    const saved = (localStorage.getItem("lgm_day_mode") as DayMode) || "normal";
+    // 出張・病欠はユーザーが手動設定した状態なのでそのまま保持
+    if (saved === "business_trip" || saved === "sick") return saved;
+    // 今日の曜日が休日設定に含まれるか確認
+    try {
+      const ps = localStorage.getItem("lgm_profile_v2");
+      const prof = ps ? { ...DEFAULT_PROFILE, ...JSON.parse(ps) } : DEFAULT_PROFILE;
+      const todayDow = new Date().getDay(); // 0=日, 1=月, ..., 6=土
+      if (prof.offDays && prof.offDays.includes(todayDow)) {
+        localStorage.setItem("lgm_day_mode", "holiday");
+        return "holiday";
+      }
+    } catch {}
+    return saved;
   });
 
   // 旧互換: difficulty (理想設定タブ等で使用)
@@ -681,8 +694,13 @@ export function useScoreEngine() {
             return ps ? { ...DEFAULT_PROFILE, ...JSON.parse(ps) } : DEFAULT_PROFILE;
           } catch { return DEFAULT_PROFILE; }
         })();
-        const currentDayMode = (localStorage.getItem("lgm_day_mode") as DayMode) || "normal";
-        const newEvents = currentDayMode === "holiday" ? buildHolidayEvents(currentProfile) : buildDefaultEvents(currentProfile);
+        // 新しい日の曜日が休日設定に含まれるか判定（出張・病欠はリセット）
+        const newDow = now.getDay();
+        const isOffDay = currentProfile.offDays && currentProfile.offDays.includes(newDow);
+        const autoMode: DayMode = isOffDay ? "holiday" : "normal";
+        setDayModeState(autoMode);
+        localStorage.setItem("lgm_day_mode", autoMode);
+        const newEvents = autoMode === "holiday" ? buildHolidayEvents(currentProfile) : buildDefaultEvents(currentProfile);
         setEvents(newEvents);
         localStorage.setItem(`lgm_events_${newDateKey}`, JSON.stringify(newEvents));
       }
