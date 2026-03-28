@@ -23,6 +23,7 @@ import HelpPage from "@/components/HelpPage";
 import SetupScreen from "@/components/SetupScreen";
 import ConsentModal, { hasConsented } from "@/components/ConsentModal";
 import SmallGauge from "@/components/SmallGauge";
+import PinLockScreen, { hasPinSet } from "@/components/PinLockScreen";
 import { useScoreEngine, calcEarlyRiseBonus, getEarlyRiseLabel } from "@/hooks/useScoreEngine";
 import type { DayMode } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
@@ -64,6 +65,8 @@ export default function Home() {
   const [todaySubTab, setTodaySubTab] = useState<TodaySubTab>("tasks");
   const [showConsent, setShowConsent] = useState(() => !hasConsented());
   const [showSetup, setShowSetup] = useState(() => !profile.name);
+  // PINロック: 起動時にPINが設定されている場合はロック画面を表示
+  const [pinLocked, setPinLocked] = useState(() => hasPinSet());
   const prevScoreRef = useRef(score);
   const [scoreFlash, setScoreFlash] = useState(false);
 
@@ -169,6 +172,11 @@ export default function Home() {
   ];
 
   const HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663145989169/V3mzZwvpdi82dLMoVHx8Pr/hero-bg-JeDdhMmnmpUPNBZ3PigiRd.webp";
+
+  // PINロック画面
+  if (pinLocked) {
+    return <PinLockScreen onUnlock={() => setPinLocked(false)} />;
+  }
 
   // 初回同意画面（未同意の場合）
   if (showConsent) {

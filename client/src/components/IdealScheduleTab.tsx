@@ -15,6 +15,7 @@ import { useState } from "react";
 import type { UserProfile, DayMode, TaskMode, UserType } from "@/hooks/useScoreEngine";
 import { USER_TYPE_LABELS } from "@/hooks/useScoreEngine";
 import { toast } from "sonner";
+import { hasPinSet, savePin, clearPin, verifyPin } from "@/components/PinLockScreen";
 
 interface Props {
   profile: UserProfile;
@@ -57,6 +58,12 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
   const [local, setLocal] = useState<UserProfile>({ ...profile });
   const [gpsLoading, setGpsLoading] = useState<"home" | "work" | null>(null);
   const [saved, setSaved] = useState(false);
+
+  // PIN設定UI用ステート
+  const [pinMode, setPinMode] = useState<"idle" | "set" | "change_verify" | "change_new" | "remove_verify">("idle");
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinSet, setPinSet] = useState(() => hasPinSet());
 
   function update<K extends keyof UserProfile>(key: K, value: UserProfile[K]) {
     setLocal(prev => ({ ...prev, [key]: value }));
@@ -363,6 +370,83 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
         </div>
       </SectionCard>
 
+      {/* ─── セキュリティ設定 ─── */}
+      <SectionCard title="セキュリティ設定" emoji="🔐">
+        <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12, fontFamily: "'Noto Sans JP', sans-serif" }}>
+          PINコード（4桁）でアプリを保護します。<br />
+          起動時にPINの入力が必要になります。
+        </div>
+
+        {pinMode === "idle" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {pinSet ? (
+              <>
+                <div style={{ fontSize: 12, color: "#059669", fontWeight: 700, marginBottom: 4 }}>✅ PINコードが設定されています</div>
+                <button onClick={() => { setPinMode("change_verify"); setPinInput(""); setPinError(""); }} style={pinBtnStyle("#6d28d9")}>🔄 PINを変更する</button>
+                <button onClick={() => { setPinMode("remove_verify"); setPinInput(""); setPinError(""); }} style={pinBtnStyle("#dc2626")}>🗑️ PINを解除する</button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>現在PINは設定されていません</div>
+                <button onClick={() => { setPinMode("set"); setPinInput(""); setPinError(""); }} style={pinBtnStyle("#db2777")}>🔒 PINを設定する</button>
+              </>
+            )}
+          </div>
+        )}
+
+        {(pinMode === "set" || pinMode === "change_new") && (
+          <PinInputUI
+            label={pinMode === "set" ? "新しいPINコード（4桁）を入力" : "新しいPINコード（4桁）を入力"}
+            value={pinInput}
+            onChange={(v) => { setPinInput(v); setPinError(""); }}
+            error={pinError}
+            onConfirm={() => {
+              if (pinInput.length !== 4) { setPinError("4桁で入力してください"); return; }
+              savePin(pinInput);
+              setPinSet(true);
+              setPinMode("idle");
+              setPinInput("");
+              toast.success("PINコードを設定しました 🔐", { style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" } });
+            }}
+            onCancel={() => { setPinMode("idle"); setPinInput(""); setPinError(""); }}
+          />
+        )}
+
+        {pinMode === "change_verify" && (
+          <PinInputUI
+            label="現在のPINコードを入力"
+            value={pinInput}
+            onChange={(v) => { setPinInput(v); setPinError(""); }}
+            error={pinError}
+            onConfirm={() => {
+              if (!verifyPin(pinInput)) { setPinError("PINコードが違います"); setPinInput(""); return; }
+              setPinMode("change_new");
+              setPinInput("");
+              setPinError("");
+            }}
+            onCancel={() => { setPinMode("idle"); setPinInput(""); setPinError(""); }}
+          />
+        )}
+
+        {pinMode === "remove_verify" && (
+          <PinInputUI
+            label="現在のPINコードを入力して解除"
+            value={pinInput}
+            onChange={(v) => { setPinInput(v); setPinError(""); }}
+            error={pinError}
+            onConfirm={() => {
+              if (!verifyPin(pinInput)) { setPinError("PINコードが違います"); setPinInput(""); return; }
+              clearPin();
+              setPinSet(false);
+              setPinMode("idle");
+              setPinInput("");
+              toast.success("PINコードを解除しました", { style: { background: "#fdf6ff", border: "1px solid rgba(192,132,245,0.3)", color: "#6b21a8" } });
+            }}
+            onCancel={() => { setPinMode("idle"); setPinInput(""); setPinError(""); }}
+          />
+        )}
+      </SectionCard>
+
       {/* 保存ボタン */}
       <button
         onClick={handleSave}
@@ -386,6 +470,79 @@ export default function IdealScheduleTab({ profile, onSave, dayMode, onDayModeCh
       >
         {saved ? "✓ 保存しました！" : "💾 設定を保存する"}
       </button>
+    </div>
+  );
+}
+
+// ─── PIN設定ヘルパー ───────────────────────────────────────────────
+function pinBtnStyle(color: string): React.CSSProperties {
+  return {
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "none",
+    background: color,
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: "pointer",
+    fontFamily: "'Noto Sans JP', sans-serif",
+  };
+}
+
+function PinInputUI({
+  label, value, onChange, error, onConfirm, onCancel
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  error: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const handleKey = (k: string) => {
+    if (value.length < 4) onChange(value + k);
+  };
+  const handleDel = () => onChange(value.slice(0, -1));
+  const dots = Array.from({ length: 4 }, (_, i) => i < value.length);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      <div style={{ fontSize: 12, color: "#6b7280", fontFamily: "'Noto Sans JP', sans-serif" }}>{label}</div>
+      <div style={{ display: "flex", gap: 12 }}>
+        {dots.map((filled, i) => (
+          <div key={i} style={{
+            width: 14, height: 14, borderRadius: "50%",
+            background: filled ? (error ? "#f87171" : "#db2777") : "transparent",
+            border: `2px solid ${filled ? (error ? "#f87171" : "#db2777") : "#f9a8d4"}`,
+            transition: "all 0.15s",
+          }} />
+        ))}
+      </div>
+      {error && <div style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>{error}</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, width: 200 }}>
+        {["1","2","3","4","5","6","7","8","9"].map(k => (
+          <button key={k} onClick={() => handleKey(k)} style={{
+            height: 48, borderRadius: 12, border: "1.5px solid rgba(192,132,245,0.2)",
+            background: "rgba(255,255,255,0.9)", fontSize: 18, fontWeight: 700,
+            color: "#374151", cursor: "pointer",
+          }}>{k}</button>
+        ))}
+        <div />
+        <button onClick={() => handleKey("0")} style={{
+          height: 48, borderRadius: 12, border: "1.5px solid rgba(192,132,245,0.2)",
+          background: "rgba(255,255,255,0.9)", fontSize: 18, fontWeight: 700,
+          color: "#374151", cursor: "pointer",
+        }}>0</button>
+        <button onClick={handleDel} style={{
+          height: 48, borderRadius: 12, border: "1.5px solid rgba(192,132,245,0.2)",
+          background: "rgba(255,255,255,0.9)", fontSize: 16, fontWeight: 700,
+          color: "#6b7280", cursor: "pointer",
+        }}>⌫</button>
+      </div>
+      <div style={{ display: "flex", gap: 8, width: "100%" }}>
+        <button onClick={onCancel} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e5e7eb", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b7280", cursor: "pointer" }}>キャンセル</button>
+        <button onClick={onConfirm} disabled={value.length !== 4} style={{ flex: 2, padding: "10px", borderRadius: 10, border: "none", background: value.length === 4 ? "linear-gradient(135deg, #f9a8d4, #c084f5)" : "#e5e7eb", fontSize: 13, fontWeight: 700, color: value.length === 4 ? "#fff" : "#9ca3af", cursor: value.length === 4 ? "pointer" : "not-allowed" }}>確定</button>
+      </div>
     </div>
   );
 }
