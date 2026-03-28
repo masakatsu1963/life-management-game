@@ -162,7 +162,7 @@ export default function Home() {
   const FOOT_TABS: { id: FootTab; icon: string; label: string }[] = [
     { id: "today", icon: "📊", label: "今日" },
     { id: "week",  icon: "📈", label: "今週の経過" },
-    { id: "ideal", icon: "🌸", label: "理想設定" },
+    { id: "ideal", icon: "🌸", label: "生活スタイル設定" },
     { id: "help",  icon: "📖", label: "使い方" },
   ];
 
