@@ -221,7 +221,7 @@ export default function Home() {
           </div>
           <div>
             <div className="text-sm font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: "rgba(0,0,0,0.65)", lineHeight: 1.2 }}>
-              {profile.name || "あなた"}さんの獲得ポイント！
+              {profile.name || "あなた"}さんの今日のスコア！
             </div>
             <div className="text-xs" style={{ color: "rgba(0,0,0,0.3)", fontSize: "0.6rem" }}>
               {dayMode === "normal" ? "通常モード💼" : dayMode === "holiday" ? "休日モード🌸" : dayMode === "business_trip" ? "出張モード✈️" : "病欠モード🤒"}
