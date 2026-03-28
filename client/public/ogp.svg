@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- 背景グラデーション -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fff0f5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fce7f3;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="meter" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f9a8d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c084fc;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- 装飾円 -->
+  <circle cx="1050" cy="100" r="200" fill="#f9a8d4" opacity="0.15"/>
+  <circle cx="150" cy="530" r="150" fill="#c084fc" opacity="0.1"/>
+
+  <!-- 花びら装飾（左） -->
+  <ellipse cx="80" cy="200" rx="30" ry="50" fill="#f9a8d4" opacity="0.4"/>
+  <ellipse cx="110" cy="160" rx="30" ry="50" fill="#f9a8d4" opacity="0.35" transform="rotate(72 110 160)"/>
+  <ellipse cx="140" cy="200" rx="30" ry="50" fill="#f9a8d4" opacity="0.35" transform="rotate(144 140 200)"/>
+  <circle cx="110" cy="195" r="22" fill="#fde68a" opacity="0.8"/>
+
+  <!-- タイトル -->
+  <text x="600" y="220" font-family="'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif" font-size="88" font-weight="bold" fill="#be185d" text-anchor="middle" letter-spacing="4">イキイキめーたー</text>
+
+  <!-- サブタイトル -->
+  <text x="600" y="310" font-family="'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif" font-size="36" fill="#9d174d" text-anchor="middle" opacity="0.8">毎日の行動を見える化するライフゲーム</text>
+
+  <!-- メーターバー -->
+  <rect x="200" y="370" width="800" height="24" rx="12" fill="#fce7f3"/>
+  <rect x="200" y="370" width="580" height="24" rx="12" fill="url(#meter)"/>
+  <circle cx="780" cy="382" r="18" fill="white" stroke="#f9a8d4" stroke-width="3"/>
+
+  <!-- ポイントラベル -->
+  <text x="200" y="440" font-family="'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif" font-size="28" fill="#be185d" opacity="0.7">通勤pt</text>
+  <text x="430" y="440" font-family="'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif" font-size="28" fill="#be185d" opacity="0.7">タスクpt</text>
+  <text x="680" y="440" font-family="'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif" font-size="28" fill="#be185d" opacity="0.7">早起きpt</text>
+
+  <!-- 蓮華堂クレジット -->
+  <text x="600" y="560" font-family="'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif" font-size="26" fill="#9d174d" text-anchor="middle" opacity="0.6">蓮華堂 rengedo.asia</text>
+</svg>

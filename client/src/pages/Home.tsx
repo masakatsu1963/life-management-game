@@ -623,19 +623,36 @@ export default function Home() {
 
         {/* === クレジットフッター === */}
         <footer
-          className="text-center py-4 mt-2"
+          className="text-center py-4 mt-2 space-y-1"
           style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: "0.65rem", color: "rgba(0,0,0,0.28)" }}
         >
-          &copy; 2026{" "}
-          <a
-            href="https://rengedo.asia/"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "rgba(192,132,245,0.7)", textDecoration: "underline", textUnderlineOffset: 2 }}
-          >
-            蓮華堂
-          </a>
-          {" "}All rights reserved.
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href="/legal"
+              style={{ color: "rgba(192,132,245,0.7)", textDecoration: "underline", textUnderlineOffset: 2 }}
+            >
+              プライバシーポリシー
+            </a>
+            <span style={{ color: "rgba(0,0,0,0.15)" }}>|</span>
+            <a
+              href="/legal?tab=terms"
+              style={{ color: "rgba(192,132,245,0.7)", textDecoration: "underline", textUnderlineOffset: 2 }}
+            >
+              利用規約
+            </a>
+          </div>
+          <div>
+            &copy; 2026{" "}
+            <a
+              href="https://rengedo.asia/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "rgba(192,132,245,0.7)", textDecoration: "underline", textUnderlineOffset: 2 }}
+            >
+              蓮華堂
+            </a>
+            {" "}All rights reserved.
+          </div>
         </footer>
       </main>
 
