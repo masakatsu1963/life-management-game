@@ -75,6 +75,15 @@ function PrivacyPolicy() {
         </p>
       </Section>
 
+      <Section title="個人情報について">
+        <p>
+          氏名・住所等の個人を特定できる情報の入力は不要ですが、自宅や勤務先の最寄駅についての入力がございます。これらの情報は設定画面でしか確認できませんが、ご注意ください。
+        </p>
+        <p className="mt-2 text-pink-700 font-bold">
+          なお、今後パスワード管理などの対策を講じる予定です。
+        </p>
+      </Section>
+
       <Section title="1. 収集する情報">
         <p>本アプリは、以下の情報を収集・保存します。</p>
         <ul>
