@@ -1,7 +1,18 @@
 /**
  * HelpPage.tsx
  * Design: Pastel Kawaii Life Manager
- * アプリの使い方・見方を説明するページ
+ * アプリの使い方・見方を説明するページ（最新仕様対応版）
+ *
+ * 反映済み仕様:
+ * - タブ構成: 今日 / 今週の経過 / 理想設定 / 使い方
+ * - 今日タブ: モード選択（通常/休日/出張・病欠） + 早起きボタン + サブメーター + タスク/移動ログ
+ * - タスク選択: デフォルト「何をしましたか？」、「何もしなかった（0pt）」追加
+ * - 未来タスクはロック（🔒）
+ * - 休日モード: 午前・午後・夜間の9スロット、各30pt、満点90pt
+ * - 早起きボーナス: 理想起床時刻との差分で最大30pt（別枠加算）
+ * - 出張・病欠: 移動ログなし、タスクのみ
+ * - 設定した休日曜日は自動で休日モードに切り替わる
+ * - デスクトップへの保存方法（iPhone/Android）
  */
 
 import { useState } from "react";
@@ -26,9 +37,44 @@ const sections = [
       {
         type: "tips",
         items: [
-          "毎日続けるとストリーク（連続日数）が増えます",
-          "7日間スコア80点超えでチートポイントがもらえます",
+          "毎日続けることで自分の生活リズムが見えてきます",
+          "週間グラフで7日間の変化を振り返れます",
           "無理せず、自分のペースで使いましょう🌿",
+        ],
+      },
+    ],
+  },
+  {
+    id: "tabs",
+    emoji: "📱",
+    title: "各タブの使い方",
+    color: "#60a5fa",
+    bg: "rgba(96,165,250,0.08)",
+    border: "rgba(96,165,250,0.3)",
+    content: [
+      {
+        type: "tab-guide",
+        items: [
+          {
+            icon: "📊",
+            label: "今日タブ",
+            desc: "メインの管理画面。スコアメーター・早起きボタン・今日のモード選択・タスク記録・移動ログをまとめて確認・入力できます。",
+          },
+          {
+            icon: "📈",
+            label: "今週の経過タブ",
+            desc: "過去7日間のスコア推移グラフと週間カテゴリ達成率を確認できます。",
+          },
+          {
+            icon: "🌸",
+            label: "理想設定タブ",
+            desc: "プロフィール（名前・起床時間・最寄駅・休日設定など）の確認・編集、タスクモード変更ができます。",
+          },
+          {
+            icon: "📖",
+            label: "使い方タブ",
+            desc: "このページです。いつでも確認できます。",
+          },
         ],
       },
     ],
@@ -55,7 +101,14 @@ const sections = [
       },
       {
         type: "text",
-        body: "針はリアルタイムで動きます。1分ごとに自動更新されるので、「更新」ボタンを押さなくても大丈夫です。",
+        body: "針はリアルタイムで動きます。1分ごとに自動更新されます。メーター下の数字が「獲得ポイント / 満点」です。",
+      },
+      {
+        type: "tips",
+        items: [
+          "サブメーターが3つ表示されます：時間pt・位置pt・タスクpt",
+          "早起きボーナスは時間ptサブメーターに加算されます",
+        ],
       },
     ],
   },
@@ -68,167 +121,225 @@ const sections = [
     border: "rgba(52,211,153,0.3)",
     content: [
       {
-        type: "score-breakdown",
+        type: "text",
+        body: "スコアは「獲得ポイント ÷ 満点 × 100」で計算されます。タスクモードによって満点が変わります。",
+      },
+      {
+        type: "table",
+        headers: ["タスクモード", "満点", "内容"],
+        rows: [
+          ["🚶 イージー", "30pt", "移動ログのみ（タスクなし）"],
+          ["🚃 ハーフ", "50pt", "通勤中・帰宅中タスクのみ"],
+          ["🌟 ハード", "100pt", "全5タスク完全版"],
+        ],
       },
       {
         type: "text",
-        body: "4つの要素を合計して「生活効率スコア」が決まります。時間精度が最も大きな割合を占めています。",
+        body: "早起きボーナスは満点とは別枠で加算されます。満点を超えた場合はメーターがゴールド表示になります。",
       },
       {
-        type: "tips",
-        items: [
-          "時間精度：理想スケジュールの時刻から±5分以内なら満点",
-          "空間精度：設定した場所から100m以内なら満点",
-          "活動達成：チェックした活動の割合",
-          "感情スコア：その日の気分を5段階で入力",
+        type: "table",
+        headers: ["ポイント種別", "内容"],
+        rows: [
+          ["⏰ 時間pt", "理想スケジュールの時刻に近いほど加点"],
+          ["📍 位置pt", "設定した場所（駅・職場）に近いほど加点"],
+          ["✅ タスクpt", "タスクを達成するごとに加点"],
+          ["🌅 早起きpt", "理想起床時刻より早く起きると別枠で加点"],
         ],
       },
     ],
   },
   {
-    id: "status",
-    emoji: "⏰",
-    title: "ステータスバーの見方",
+    id: "earlyrise",
+    emoji: "🌅",
+    title: "早起きボーナスの使い方",
     color: "#f59e0b",
     bg: "rgba(245,158,11,0.08)",
     border: "rgba(245,158,11,0.3)",
     content: [
       {
-        type: "status-items",
-        items: [
-          { icon: "⏰", label: "時間ズレ", desc: "現在時刻と直近の理想スケジュールのズレ（分）。マイナスは遅れを意味します。±5分以内で緑色になります。" },
-          { icon: "📍", label: "距離", desc: "現在地と理想スケジュールの場所とのズレ（km）。位置情報をONにすると自動計測されます。" },
-          { icon: "💎", label: "チートCP", desc: "チートポイントの残量。連続7日80点超えで50CP獲得。アラーム無効（50CP）や空間条件解除（30CP）に使えます。" },
-          { icon: "🔥", label: "連続日数", desc: "スコア80点以上を達成した日が何日連続しているか。7日達成でボーナスがもらえます。" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "tabs",
-    emoji: "📱",
-    title: "各タブの使い方",
-    color: "#60a5fa",
-    bg: "rgba(96,165,250,0.08)",
-    border: "rgba(96,165,250,0.3)",
-    content: [
-      {
-        type: "tab-guide",
-        items: [
-          {
-            icon: "📊",
-            label: "ダッシュ",
-            desc: "メインの管理画面。スコアメーター・24時間グラフ・スコア内訳・感情入力・チートシステムをまとめて確認できます。",
-          },
-          {
-            icon: "📋",
-            label: "今日",
-            desc: "今日のスケジュール一覧。各活動のチェックボックスをタップして達成をマークします。位置情報の設定もここから。",
-          },
-          {
-            icon: "🌸",
-            label: "理想設定",
-            desc: "プロフィール（名前・起床時間・最寄駅など）の確認・編集、モード変更、理想スケジュールの編集ができます。",
-          },
-          {
-            icon: "📖",
-            label: "使い方",
-            desc: "このページです。いつでも確認できます。",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "schedule",
-    emoji: "📋",
-    title: "理想スケジュールの設定",
-    color: "#f472b6",
-    bg: "rgba(244,114,182,0.08)",
-    border: "rgba(244,114,182,0.3)",
-    content: [
-      {
         type: "text",
-        body: "「理想設定」タブ →「理想スケジュール」の「✏️ 編集」ボタンから、1日の理想的なスケジュールを自由に設定できます。",
+        body: "今日タブの上部にある「おはよう！早起きポイント」ボタンをタップすると、その時刻と理想起床時刻の差分でボーナスポイントが加算されます。",
+      },
+      {
+        type: "table",
+        headers: ["早起き時間", "ボーナスpt"],
+        rows: [
+          ["1時間以上早い", "+30pt 🌟"],
+          ["45分以上早い", "+25pt ⭐"],
+          ["30分以上早い", "+20pt ☀️"],
+          ["15分以上早い", "+15pt 🌤️"],
+          ["1分以上早い", "+10pt 👍"],
+          ["ちょうど", "+5pt ⏰"],
+          ["遅れた場合", "0〜4pt 🌙"],
+        ],
       },
       {
         type: "tips",
         items: [
-          "時刻・場所・活動内容の3つを入力します",
-          "最低1件あれば動作します",
-          "就寝時間も入れると夜のスコアが計算されます",
-          "休日用スケジュールは今後対応予定です",
-        ],
-      },
-      {
-        type: "example",
-        title: "設定例",
-        rows: [
-          ["06:30", "自宅", "起床・瞑想"],
-          ["07:15", "通勤", "学習30分"],
-          ["12:00", "職場", "昼休み活用"],
-          ["22:00", "自宅", "就寝デトックス"],
+          "1日1回のみ記録できます（タップ後は変更不可）",
+          "早起きボーナスは時間ptサブメーターに加算されます",
+          "ボタンは当日中いつでも表示されます（タップ忘れ防止）",
         ],
       },
     ],
   },
   {
-    id: "cheat",
-    emoji: "💎",
-    title: "チートシステム",
+    id: "daymode",
+    emoji: "🎮",
+    title: "今日のモード選択",
     color: "#a855f7",
     bg: "rgba(168,85,247,0.08)",
     border: "rgba(168,85,247,0.3)",
     content: [
       {
         type: "text",
-        body: "チートポイント（CP）は、頑張った日のご褒美として使える特別なポイントです。",
+        body: "今日タブのメーター下にある3つのボタンで今日のモードを選択します。設定した休日曜日は起動時に自動で休日モードに切り替わります。",
       },
       {
         type: "table",
-        headers: ["獲得方法", "CP"],
+        headers: ["モード", "特徴"],
         rows: [
-          ["7日連続スコア80点超え", "+50CP"],
-          ["初回設定完了", "+20CP（初期付与）"],
-        ],
-      },
-      {
-        type: "table",
-        headers: ["使い方", "消費CP"],
-        rows: [
-          ["全アラーム無効（1日）", "50CP"],
-          ["空間条件解除（1日）", "30CP"],
+          ["💼 通常", "平日の通常スケジュール。タスクモードに応じた満点でスコア計算"],
+          ["🌸 休日", "午前・午後・夜間の9スロット。各30pt・満点90pt。移動ログなし"],
+          ["✈️ 出張", "移動ログなし。タスクのみ表示。前日スコアを引き継ぎ"],
+          ["🤒 病欠", "移動ログなし。タスクのみ表示。前日スコアを引き継ぎ"],
         ],
       },
       {
         type: "tips",
         items: [
-          "CPは大切に使いましょう。一度使うと戻りません",
-          "体調が悪い日や特別な日に使うのがおすすめです",
+          "出張・病欠は「出張・病欠」ボタンを繰り返しタップで切り替えられます",
+          "理想設定で選んだ休日曜日は、その曜日に起動すると自動で休日モードになります",
+          "日付をまたぐと出張・病欠モードはリセットされ、曜日設定に基づいて再判定されます",
         ],
       },
     ],
   },
   {
-    id: "modes",
-    emoji: "🎮",
-    title: "モードについて",
+    id: "tasks",
+    emoji: "✅",
+    title: "タスクの記録方法",
     color: "#34d399",
     bg: "rgba(52,211,153,0.08)",
     border: "rgba(52,211,153,0.3)",
     content: [
       {
-        type: "table",
-        headers: ["モード", "特徴"],
-        rows: [
-          ["🌸 ソロモード", "自分のペースで理想生活を追う基本モード"],
-          ["⚔️ バトルモード", "招待コードで友達と対戦（Coming Soon）"],
-          ["🌿 リラックスモード", "スコアを気にせず記録だけ続けたい日に"],
+        type: "text",
+        body: "今日タブの「今日のタスク」セクションで、各タスクをタップして展開し、何をしたかを選択してOKボタンを押すと記録されます。",
+      },
+      {
+        type: "status-items",
+        items: [
+          { icon: "🔒", label: "ロックされたタスク（未来）", desc: "まだ時刻になっていないタスクはグレーアウトされタップできません。時刻を過ぎると入力可能になります。" },
+          { icon: "📝", label: "入力可能なタスク", desc: "タップして展開し、「何をしましたか？」からタスク内容を選択。OKボタンで記録します。" },
+          { icon: "💤", label: "何もしなかった", desc: "選択肢に「何もしなかった（0pt）」があります。記録だけしておきたい時に使いましょう。" },
+          { icon: "✅", label: "記録済みタスク", desc: "OKを押すとポイントが加算され、カードに達成マークが表示されます。" },
         ],
       },
       {
+        type: "tips",
+        items: [
+          "過去のタスクはいつでも後から入力できます",
+          "未来の時刻のタスクは入力できません（🔒表示）",
+          "休日モードでは午前・午後・夜間の9スロットが表示されます",
+        ],
+      },
+    ],
+  },
+  {
+    id: "holiday",
+    emoji: "🌸",
+    title: "休日モードの使い方",
+    color: "#f472b6",
+    bg: "rgba(244,114,182,0.08)",
+    border: "rgba(244,114,182,0.3)",
+    content: [
+      {
         type: "text",
-        body: "「理想設定」タブのモード選択からいつでも変更できます。",
+        body: "休日モードでは、午前・午後・夜間の3つの時間帯に各3スロット（計9スロット）が表示されます。各タスクは30ptで、満点は90ptです。",
+      },
+      {
+        type: "table",
+        headers: ["時間帯", "スロット数", "各pt"],
+        rows: [
+          ["☀️ 午前（〜12時）", "3スロット", "各30pt"],
+          ["🌞 午後（13〜18時）", "3スロット", "各30pt"],
+          ["🌙 夜間（19時〜）", "3スロット", "各30pt"],
+        ],
+      },
+      {
+        type: "tips",
+        items: [
+          "移動ログは表示されません（休日のため）",
+          "勉強・読書・散歩・ストレッチなど自由に選択できます",
+          "早起きボーナスは休日モードでも加算されます",
+        ],
+      },
+    ],
+  },
+  {
+    id: "setup",
+    emoji: "⚙️",
+    title: "初期設定・理想設定の変更",
+    color: "#60a5fa",
+    bg: "rgba(96,165,250,0.08)",
+    border: "rgba(96,165,250,0.3)",
+    content: [
+      {
+        type: "text",
+        body: "「理想設定」タブから、名前・起床時間・最寄駅・勤務先・出社/昼休憩/退社/就寝時間・休日設定・タスクモードをいつでも変更できます。",
+      },
+      {
+        type: "table",
+        headers: ["設定項目", "内容"],
+        rows: [
+          ["名前", "アプリ内で表示される名前"],
+          ["起床時間", "早起きボーナスの基準時刻"],
+          ["自宅最寄駅", "通勤ルートの出発点（位置pt計算に使用）"],
+          ["勤務先最寄駅", "通勤ルートの到着点（位置pt計算に使用）"],
+          ["出社・昼休憩・退社時間", "タスクのスケジュール時刻"],
+          ["就寝時間", "就寝前デトックスタスクの時刻"],
+          ["休日設定", "選んだ曜日は起動時に自動で休日モードになります"],
+          ["タスクモード", "イージー/ハーフ/ハードで満点を変更"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "install",
+    emoji: "📲",
+    title: "スマホのホーム画面に追加する方法",
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.08)",
+    border: "rgba(245,158,11,0.3)",
+    content: [
+      {
+        type: "text",
+        body: "このアプリはWebアプリです。ホーム画面に追加するとアプリのように使えます。",
+      },
+      {
+        type: "status-items",
+        items: [
+          {
+            icon: "🍎",
+            label: "iPhone（Safari）の場合",
+            desc: "Safariで開く → 画面下の「共有」ボタン（□↑）をタップ → 「ホーム画面に追加」を選択 → 「追加」をタップ",
+          },
+          {
+            icon: "🤖",
+            label: "Android（Chrome）の場合",
+            desc: "Chromeで開く → 右上の「⋮」メニューをタップ → 「ホーム画面に追加」または「アプリをインストール」を選択",
+          },
+        ],
+      },
+      {
+        type: "tips",
+        items: [
+          "ホーム画面に追加するとフルスクリーンで起動できます",
+          "データはブラウザのローカルストレージに保存されます",
+          "ブラウザのデータを消去するとデータが失われますのでご注意ください",
+        ],
       },
     ],
   },
@@ -359,18 +470,12 @@ export default function HelpPage() {
                       <div className="flex flex-col items-center gap-2 py-2">
                         <div className="relative" style={{ width: 200, height: 110 }}>
                           <svg viewBox="0 0 200 110" width="200" height="110">
-                            {/* Background arc */}
                             <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="16" strokeLinecap="round" />
-                            {/* Green zone */}
                             <path d="M 20 100 A 80 80 0 0 1 100 20" fill="none" stroke="#34d399" strokeWidth="16" strokeLinecap="round" opacity="0.4" />
-                            {/* Purple zone */}
                             <path d="M 100 20 A 80 80 0 0 1 165 55" fill="none" stroke="#c084f5" strokeWidth="16" strokeLinecap="round" opacity="0.4" />
-                            {/* Pink zone */}
                             <path d="M 165 55 A 80 80 0 0 1 180 100" fill="none" stroke="#f9a8d4" strokeWidth="16" strokeLinecap="round" opacity="0.4" />
-                            {/* Needle */}
                             <line x1="100" y1="100" x2="55" y2="40" stroke="#c084f5" strokeWidth="3" strokeLinecap="round" />
                             <circle cx="100" cy="100" r="6" fill="#c084f5" />
-                            {/* Labels */}
                             <text x="12" y="108" fontSize="10" fill="rgba(0,0,0,0.4)" fontFamily="sans-serif">0</text>
                             <text x="88" y="16" fontSize="10" fill="rgba(0,0,0,0.4)" fontFamily="sans-serif">50</text>
                             <text x="178" y="108" fontSize="10" fill="rgba(0,0,0,0.4)" fontFamily="sans-serif">100</text>
@@ -390,33 +495,6 @@ export default function HelpPage() {
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
-
-                    {/* Score breakdown diagram */}
-                    {block.type === "score-breakdown" && (
-                      <div className="flex flex-col gap-2">
-                        {[
-                          { label: "⏰ 時間精度", pct: 40, color: "#f9a8d4", desc: "40%" },
-                          { label: "📍 空間精度", pct: 30, color: "#c084f5", desc: "30%" },
-                          { label: "✅ 活動達成", pct: 20, color: "#34d399", desc: "20%" },
-                          { label: "😊 感情スコア", pct: 10, color: "#60a5fa", desc: "10%" },
-                        ].map((item) => (
-                          <div key={item.label} className="flex items-center gap-2">
-                            <span className="text-xs font-medium" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.55)", minWidth: "6.5rem" }}>
-                              {item.label}
-                            </span>
-                            <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.06)" }}>
-                              <div
-                                className="h-full rounded-full"
-                                style={{ width: `${item.pct}%`, background: item.color }}
-                              />
-                            </div>
-                            <span className="text-xs font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: item.color, minWidth: "2rem" }}>
-                              {item.desc}
-                            </span>
-                          </div>
-                        ))}
                       </div>
                     )}
 
@@ -465,34 +543,6 @@ export default function HelpPage() {
                         ))}
                       </div>
                     )}
-
-                    {/* Example block */}
-                    {block.type === "example" && (
-                      <div>
-                        <div className="text-xs font-medium mb-1.5" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.4)" }}>
-                          {(block as { type: string; title: string; rows: string[][] }).title}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          {(block as { type: string; title: string; rows: string[][] }).rows.map((row: string[], j: number) => (
-                            <div
-                              key={j}
-                              className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
-                              style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(0,0,0,0.05)" }}
-                            >
-                              <span className="text-xs font-bold" style={{ fontFamily: "'Shippori Mincho', serif", color: section.color, minWidth: "2.5rem" }}>
-                                {row[0]}
-                              </span>
-                              <span className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.35)", minWidth: "2.5rem" }}>
-                                📍 {row[1]}
-                              </span>
-                              <span className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.6)" }}>
-                                {row[2]}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -507,7 +557,7 @@ export default function HelpPage() {
         style={{ background: "rgba(249,168,212,0.06)", border: "1px dashed rgba(249,168,212,0.3)" }}
       >
         <p className="text-xs" style={{ fontFamily: "'Noto Sans JP', sans-serif", color: "rgba(0,0,0,0.35)" }}>
-          バトルモード・NotebookLM連携・最終電車通知など<br />
+          週間グラフ・通知機能など<br />
           順次アップデートで追加予定です 🌸
         </p>
       </div>
