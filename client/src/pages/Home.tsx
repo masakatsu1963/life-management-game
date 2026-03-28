@@ -21,6 +21,7 @@ import LocationLog from "@/components/LocationLog";
 import IdealScheduleTab from "@/components/IdealScheduleTab";
 import HelpPage from "@/components/HelpPage";
 import SetupScreen from "@/components/SetupScreen";
+import ConsentModal, { hasConsented } from "@/components/ConsentModal";
 import SmallGauge from "@/components/SmallGauge";
 import { useScoreEngine, calcEarlyRiseBonus, getEarlyRiseLabel } from "@/hooks/useScoreEngine";
 import type { DayMode } from "@/hooks/useScoreEngine";
@@ -61,6 +62,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<FootTab>("today");
   const [graphTab, setGraphTab] = useState<GraphTab>("today");
   const [todaySubTab, setTodaySubTab] = useState<TodaySubTab>("tasks");
+  const [showConsent, setShowConsent] = useState(() => !hasConsented());
   const [showSetup, setShowSetup] = useState(() => !profile.name);
   const prevScoreRef = useRef(score);
   const [scoreFlash, setScoreFlash] = useState(false);
@@ -167,6 +169,21 @@ export default function Home() {
   ];
 
   const HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663145989169/V3mzZwvpdi82dLMoVHx8Pr/hero-bg-JeDdhMmnmpUPNBZ3PigiRd.webp";
+
+  // 初回同意画面（未同意の場合）
+  if (showConsent) {
+    return (
+      <>
+        {/* 背景として初期設定画面を薄く表示 */}
+        <div className="min-h-screen" style={{ background: "#fdf6ff", maxWidth: "430px", margin: "0 auto" }} />
+        <ConsentModal
+          onAgree={() => {
+            setShowConsent(false);
+          }}
+        />
+      </>
+    );
+  }
 
   // 初回セットアップ（名前未設定）
   if (showSetup) {
