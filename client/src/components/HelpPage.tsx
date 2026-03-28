@@ -281,7 +281,7 @@ const sections = [
   {
     id: "setup",
     emoji: "⚙️",
-    title: "初期設定・理想設定の変更",
+    title: "生活スタイルの設定",
     color: "#60a5fa",
     bg: "rgba(96,165,250,0.08)",
     border: "rgba(96,165,250,0.3)",
