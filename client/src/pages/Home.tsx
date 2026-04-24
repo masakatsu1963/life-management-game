@@ -58,6 +58,7 @@ export default function Home() {
     studyPointsMax,
     relaxPoints,
     relaxPointsMax,
+    isSampleDay,
   } = useScoreEngine();
 
   const [activeTab, setActiveTab] = useState<FootTab>("today");
@@ -272,6 +273,32 @@ export default function Home() {
 
       {/* Main content */}
       <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-28">
+
+        {/* === サンプル日バナー === */}
+        {isSampleDay && (
+          <div
+            style={{
+              margin: "8px 0 12px",
+              padding: "10px 14px",
+              borderRadius: 14,
+              background: "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(192,132,245,0.1))",
+              border: "1.5px solid rgba(251,191,36,0.4)",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 18, lineHeight: 1.4 }}>🎓</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e", fontFamily: "'Shippori Mincho', serif" }}>
+                今日はサンプル日です
+              </div>
+              <div style={{ fontSize: 11, color: "#78350f", marginTop: 2, lineHeight: 1.6, fontFamily: "'Noto Sans JP', sans-serif" }}>
+                設定当日はサンプルとして扱われます。データの蓄積は明日から開始されます。今日は自由に試してみてください。
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* === 早起きポイント 大型タップボタン === */}
         {activeTab === "today" && (isEarlyRiseWindow || earlyRiseTapped) && (
@@ -628,7 +655,31 @@ export default function Home() {
             今週の経過タブ: WeeklyProgress
         ============================================= */}
         {activeTab === "week" && (
-          <WeeklyProgress weeklyLogs={weeklyLogs} />
+          <>
+            {isSampleDay && (
+              <div style={{
+                margin: "8px 0 12px",
+                padding: "10px 14px",
+                borderRadius: 14,
+                background: "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(192,132,245,0.1))",
+                border: "1.5px solid rgba(251,191,36,0.4)",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+              }}>
+                <span style={{ fontSize: 18, lineHeight: 1.4 }}>📊</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e", fontFamily: "'Shippori Mincho', serif" }}>
+                    グラフは明日から記録されます
+                  </div>
+                  <div style={{ fontSize: 11, color: "#78350f", marginTop: 2, lineHeight: 1.6, fontFamily: "'Noto Sans JP', sans-serif" }}>
+                    今日はサンプル日のため、週間グラフには反映されません。明日からデータが蓄積されます。
+                  </div>
+                </div>
+              </div>
+            )}
+            <WeeklyProgress weeklyLogs={weeklyLogs} />
+          </>
         )}
 
         {/* === IDEAL SCHEDULE TAB === */}

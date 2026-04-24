@@ -98,7 +98,11 @@ export default function SetupScreen({ onComplete }: Props) {
     if (step < totalSteps - 1) {
       setStep(s => s + 1);
     } else {
-      // 完了 → メイン画面へ
+      // 完了 → 初日日付を保存（サンプル日判定用）
+      const todayKey = new Date().toISOString().slice(0, 10);
+      if (!localStorage.getItem("lgm_start_date")) {
+        localStorage.setItem("lgm_start_date", todayKey);
+      }
       onComplete(
         {
           name: name.trim(),

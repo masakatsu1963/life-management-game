@@ -709,10 +709,21 @@ export function useScoreEngine() {
     return () => clearInterval(id);
   }, []);
 
+  // 初日サンプル判定: lgm_start_dateが今日と同じならサンプル日
+  const isSampleDay = (() => {
+    const startDate = localStorage.getItem("lgm_start_date");
+    if (!startDate) return false;
+    return startDate === getTodayKey();
+  })();
+
   // イベント変更時にLocalStorageへ保存＆週間ログ更新
   useEffect(() => {
     const todayKey = getTodayKey();
     localStorage.setItem(`lgm_events_${todayKey}`, JSON.stringify(events));
+    // サンプル日（初日）は週間ログに保存しない
+    const startDate = localStorage.getItem("lgm_start_date");
+    const isToday_SampleDay = startDate === todayKey;
+    if (isToday_SampleDay) return;
     const { score, earned } = calcScore(events, taskMode);
     const todayEarlyBonus = parseInt(localStorage.getItem(`lgm_early_rise_bonus_${todayKey}`) || "0");
     setWeeklyLogs(prev => {
@@ -945,6 +956,7 @@ export function useScoreEngine() {
     earnedPoints: earned,
     totalPoints: total,
     bonusTotal,
+    isSampleDay,
     // 3カテゴリ内訳
     timePoints,
     timePointsMax,
