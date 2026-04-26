@@ -202,8 +202,8 @@ export default function Home() {
           saveProfile(profileData);
           setTaskMode(mode);
           setShowSetup(false);
-          // 保存後はメイン画面（今日タブ）へ即ジャンプ
-          setActiveTab("today");
+          // 初回起動完了後は「使い方」タブを自動表示
+          setActiveTab("help");
         }}
       />
     );
