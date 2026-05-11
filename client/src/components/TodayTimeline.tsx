@@ -64,15 +64,17 @@ export default function TodayTimeline({
     e.stopPropagation();
     const content = TASK_CONTENTS.find(c => c.id === event.selectedContent);
     const pts: string[] = [];
+    const isMeal = event.id.startsWith("meal_");
 
     if (event.taskPoint > 0 && !event.taskAchieved) {
       onToggle(event.id, "task");
-      pts.push(`📚 +${event.taskPoint}pt`);
+      pts.push(isMeal ? `🍴 +${event.taskPoint}pt` : `📚 +${event.taskPoint}pt`);
     }
 
-    const label = content ? `${content.emoji} ${content.label}` : event.label;
+    const label = isMeal ? `${event.emoji} ${event.label}` : (content ? `${content.emoji} ${content.label}` : event.label);
     if (pts.length > 0) {
-      toast.success(`${label} 達成！ ${pts.join(" ")} 🌸`, { duration: 2500 });
+      const suffix = isMeal ? "😋" : "🌸";
+      toast.success(`${label} 達成！ ${pts.join(" ")} ${suffix}`, { duration: 2500 });
     }
     setExpandedId(null);
   }
@@ -438,6 +440,12 @@ export default function TodayTimeline({
 
                   {expanded && !allDone && (
                     <div style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 10 }} onClick={e => e.stopPropagation()}>
+                      {/* 食事タスク（requiresTask=false）の場合はシンプルなメッセージを表示 */}
+                      {!event.requiresTask && event.id.startsWith("meal_") && (
+                        <div style={{ marginBottom: 10, padding: "8px 10px", borderRadius: 10, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)", fontSize: 12, color: "#92400e", textAlign: "center" }}>
+                          食べたらタップしてポイントをもらおう！
+                        </div>
+                      )}
                       {event.requiresTask && (
                         <div style={{ marginBottom: 12 }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -469,12 +477,17 @@ export default function TodayTimeline({
                           style={{
                             width: "100%", padding: "12px", borderRadius: 14,
                             fontSize: 15, fontWeight: 700, cursor: "pointer", border: "none",
-                            background: "linear-gradient(135deg, #f9a8d4, #c084fc)",
-                            color: "white", boxShadow: "0 4px 14px rgba(192,132,252,0.4)",
+                            background: event.id.startsWith("meal_")
+                              ? "linear-gradient(135deg, #fbbf24, #f59e0b)"
+                              : "linear-gradient(135deg, #f9a8d4, #c084fc)",
+                            color: "white",
+                            boxShadow: event.id.startsWith("meal_")
+                              ? "0 4px 14px rgba(251,191,36,0.4)"
+                              : "0 4px 14px rgba(192,132,252,0.4)",
                             letterSpacing: "0.05em", transition: "all 0.2s",
                           }}
                         >
-                          ✓ OK！ポイント加算
+                          {event.id.startsWith("meal_") ? `🍴 食べた！+${event.taskPoint}pt` : "✓ OK！ポイント加算"}
                         </button>
                       )}
                     </div>

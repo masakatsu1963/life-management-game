@@ -83,16 +83,16 @@ export type TaskMode = "easy" | "half" | "hard";
 
 // タスクモード別に表示するイベントIDセット
 export const TASK_MODE_EVENTS: Record<TaskMode, string[]> = {
-  easy:  [],  // 移動ログのみ（タスクイベントなし）
-  half:  ["commute_task", "return_commute"],  // 通勤中・帰宅中のみ
-  hard:  ["morning_task", "commute_task", "lunch_task", "return_commute", "bedtime_detox"],  // 全タスク
+  easy:  ["meal_breakfast", "meal_lunch", "meal_snack", "meal_dinner"],  // 食事のみ
+  half:  ["meal_breakfast", "commute_task", "meal_lunch", "meal_snack", "return_commute", "meal_dinner"],  // 通勤中・帰宅中＋食事
+  hard:  ["morning_task", "meal_breakfast", "commute_task", "meal_lunch", "meal_snack", "lunch_task", "return_commute", "meal_dinner", "bedtime_detox"],  // 全タスク＋食事
 };
 
-// モード別の満点ポイント
+// モード別の満点ポイント（食事4タスク×5pt=+20pt追加）
 export const TASK_MODE_MAX: Record<TaskMode, number> = {
-  easy: 30,
-  half: 50,
-  hard: 100,
+  easy: 20,   // 食事4タスク×5pt
+  half: 70,   // 旧50pt + 食事20pt
+  hard: 120,  // 旧100pt + 食事20pt
 };
 
 // 休日モードの満点（午前30pt + 午後30pt + 夜間30pt = 90pt）
@@ -263,18 +263,34 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
       requiresLocation: false, requiresTask: false, isAuto: true, isLocation: true },
   ];
 
-  // タスク選択型イベント（表示） - タスク系 各10pt
+  // タスク選択型イベント（表示） - タスク系 吅10pt
   const taskEvents: DailyEvent[] = [
     { ...BASE, id: "morning_task", label: lbl.morningTask, emoji: "🌸",
       scheduledTime: addMinutes(profile.wakeTime, 15),
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: undefined, taskLabel: undefined },
+    // 食事タスク（各5pt・タスク選択不要）
+    { ...BASE, id: "meal_breakfast", label: "朝ごはん", emoji: "🍳",
+      scheduledTime: addMinutes(profile.wakeTime, 30),
+      timePoint: 0, locationPoint: 0, taskPoint: 5, relaxPoint: 0,
+      requiresLocation: false, requiresTask: false, isAuto: false,
+      selectedContent: undefined, taskLabel: undefined },
     { ...BASE, id: "commute_task", label: lbl.commuteTask, emoji: "🙌",
       scheduledTime: addMinutes(leaveHomeTime, 15),
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: undefined, locationLabel: "電車内", taskLabel: undefined },
+    { ...BASE, id: "meal_lunch", label: "昼ごはん", emoji: "🍜",
+      scheduledTime: lunchTime,
+      timePoint: 0, locationPoint: 0, taskPoint: 5, relaxPoint: 0,
+      requiresLocation: false, requiresTask: false, isAuto: false,
+      selectedContent: undefined, taskLabel: undefined },
+    { ...BASE, id: "meal_snack", label: "おやつ", emoji: "🍩",
+      scheduledTime: "15:00",
+      timePoint: 0, locationPoint: 0, taskPoint: 5, relaxPoint: 0,
+      requiresLocation: false, requiresTask: false, isAuto: false,
+      selectedContent: undefined, taskLabel: undefined },
     { ...BASE, id: "lunch_task", label: lbl.lunchTask, emoji: "☕",
       scheduledTime: lunchTime,
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
@@ -285,6 +301,11 @@ export function buildDefaultEvents(profile: UserProfile): DailyEvent[] {
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
       requiresLocation: false, requiresTask: true, isAuto: false,
       selectedContent: undefined, locationLabel: "電車内", taskLabel: undefined },
+    { ...BASE, id: "meal_dinner", label: "夕ごはん", emoji: "🍚",
+      scheduledTime: addMinutes(endTime, 30),
+      timePoint: 0, locationPoint: 0, taskPoint: 5, relaxPoint: 0,
+      requiresLocation: false, requiresTask: false, isAuto: false,
+      selectedContent: undefined, taskLabel: undefined },
     { ...BASE, id: "bedtime_detox", label: "就寝前デトックス", emoji: "🌙",
       scheduledTime: profile.bedTime,
       timePoint: 0, locationPoint: 0, taskPoint: 10, relaxPoint: 0,
